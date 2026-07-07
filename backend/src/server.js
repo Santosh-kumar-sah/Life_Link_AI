@@ -2,6 +2,7 @@ import { createServer } from "http";
 import app from "./app.js";
 import config from "./config/index.js";
 import logger from "./config/logger.js";
+import connectDB from "./config/db.js";
 
 const server = createServer(app);
 
@@ -23,6 +24,17 @@ const gracefulShutdown = (signal) => {
 process.on("SIGTERM", () => gracefulShutdown("SIGTERM"));
 process.on("SIGINT", () => gracefulShutdown("SIGINT"));
 
-server.listen(config.PORT, () => {
-  logger.info(`🚀 LifeLink Server running on port ${config.PORT} in ${config.NODE_ENV} mode`);
-});
+const startServer = async () => {
+  try {
+    await connectDB();
+    server.listen(config.PORT, () => {
+      logger.info(`🚀 LifeLink Server running on port ${config.PORT} in ${config.NODE_ENV} mode`);
+    });
+  } catch (error) {
+    logger.fatal({ error }, "Failed to start LifeLink server due to database connection error");
+    process.exit(1);
+  }
+};
+
+startServer();
+
