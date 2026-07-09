@@ -10,6 +10,7 @@ import config from "./config/index.js";
 import logger from "./config/logger.js";
 import errorHandler from "./middleware/errorHandler.js";
 import { NotFoundError } from "./utils/ApiError.js";
+import authRoutes from "./features/auth/auth.routes.js";
 
 const app = express();
 
@@ -96,8 +97,8 @@ app.get("/health", (req, res) => {
   });
 });
 
-// 7. Mount routes placeholder (to be wired in later phases)
-// app.use("/api/v1", router);
+// 7. Mount routes
+app.use("/api/v1/auth", authRoutes);
 
 // 8. 404 handler for unmatched routes
 app.use((req, res, next) => {
@@ -109,3 +110,4 @@ app.use(errorHandler);
 
 export default app;
 export { app };
+
