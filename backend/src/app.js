@@ -11,6 +11,8 @@ import logger from "./config/logger.js";
 import errorHandler from "./middleware/errorHandler.js";
 import { NotFoundError } from "./utils/ApiError.js";
 import authRoutes from "./features/auth/auth.routes.js";
+import donorRoutes from "./features/donor/donor.routes.js";
+import recipientRoutes from "./features/recipient/recipient.routes.js";
 
 const app = express();
 
@@ -99,6 +101,8 @@ app.get("/health", (req, res) => {
 
 // 7. Mount routes
 app.use("/api/v1/auth", authRoutes);
+app.use("/api/v1/donors", donorRoutes);
+app.use("/api/v1/recipients", recipientRoutes);
 
 // 8. 404 handler for unmatched routes
 app.use((req, res, next) => {
