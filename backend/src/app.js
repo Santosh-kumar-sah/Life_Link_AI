@@ -13,6 +13,7 @@ import { NotFoundError } from "./utils/ApiError.js";
 import authRoutes from "./features/auth/auth.routes.js";
 import donorRoutes from "./features/donor/donor.routes.js";
 import recipientRoutes from "./features/recipient/recipient.routes.js";
+import matchRoutes from "./features/matches/match.routes.js";
 
 const app = express();
 
@@ -103,6 +104,7 @@ app.get("/health", (req, res) => {
 app.use("/api/v1/auth", authRoutes);
 app.use("/api/v1/donors", donorRoutes);
 app.use("/api/v1/recipients", recipientRoutes);
+app.use("/api/v1/matches", matchRoutes);
 
 // 8. 404 handler for unmatched routes
 app.use((req, res, next) => {

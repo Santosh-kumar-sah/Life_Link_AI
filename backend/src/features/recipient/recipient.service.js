@@ -38,6 +38,10 @@ class RecipientService {
       options
     );
 
+    // Dynamic import to prevent circular dependency, trigger matches generation
+    const matchService = (await import("../matches/match.service.js")).default;
+    await matchService.generateMatchesForRecipient(profile._id);
+
     return profile;
   }
 

@@ -41,6 +41,10 @@ class DonorService {
       options
     );
 
+    // Dynamic import to prevent any potential circular dependency issues, trigger matches generation
+    const matchService = (await import("../matches/match.service.js")).default;
+    await matchService.generateMatchesForDonor(profile._id);
+
     return profile;
   }
 
