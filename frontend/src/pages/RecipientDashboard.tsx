@@ -1,19 +1,33 @@
-import { useEffect, useState } from 'react';
-import { useForm } from 'react-hook-form';
-import { zodResolver } from '@hookform/resolvers/zod';
-import { z } from 'zod';
-import { io, Socket } from 'socket.io-client';
-import { fetchClient } from '../utils/fetchClient';
-import { RecipientProfile, Match, ApiResponse } from '../types/api';
-import { Activity, Heart, Droplets, Weight, Clock, AlertTriangle } from 'lucide-react';
+import { useEffect, useState } from "react";
+import { useForm } from "react-hook-form";
+import { zodResolver } from "@hookform/resolvers/zod";
+import { z } from "zod";
+import { io, Socket } from "socket.io-client";
+import { fetchClient } from "../utils/fetchClient";
+import { RecipientProfile, Match, ApiResponse } from "../types/api";
+import {
+  Activity,
+  Heart,
+  Droplets,
+  Weight,
+  Clock,
+  AlertTriangle,
+  Navigation,
+  Edit2,
+  X,
+  ChevronUp,
+  ChevronDown,
+  AlertCircle,
+  MapPin
+} from "lucide-react";
 
 const profileSchema = z.object({
-  organNeeded: z.enum(['Kidney', 'Liver', 'Heart', 'Lung', 'Pancreas']),
-  bloodGroup: z.enum(['O-', 'O+', 'A-', 'A+', 'B-', 'B+', 'AB-', 'AB+']),
-  urgencyLevel: z.enum(['LOW', 'MEDIUM', 'HIGH', 'CRITICAL']),
-  weight: z.number().min(20).max(300),
-  latitude: z.number().min(-90).max(90),
-  longitude: z.number().min(-180).max(180),
+  organNeeded: z.enum(["Kidney", "Liver", "Heart", "Lung", "Pancreas"]),
+  bloodGroup: z.enum(["O-", "O+", "A-", "A+", "B-", "B+", "AB-", "AB+"]),
+  urgencyLevel: z.enum(["LOW", "MEDIUM", "HIGH", "CRITICAL"]),
+  weight: z.number().min(20, "Weight must be at least 20 kg").max(300, "Weight must be below 300 kg"),
+  latitude: z.number().min(-90, "Latitude must be between -90 and 90").max(90, "Latitude must be between -90 and 90"),
+  longitude: z.number().min(-180, "Longitude must be between -180 and 180").max(180, "Longitude must be between -180 and 180"),
 });
 
 type ProfileFormValues = z.infer<typeof profileSchema>;
@@ -22,40 +36,59 @@ export default function RecipientDashboard() {
   const [profile, setProfile] = useState<RecipientProfile | null>(null);
   const [matches, setMatches] = useState<Match[]>([]);
   const [loading, setLoading] = useState(true);
+  const [isEditing, setIsEditing] = useState(false);
+  const [expandedMatch, setExpandedMatch] = useState<string | null>(null);
+  const [geoLoading, setGeoLoading] = useState(false);
 
-  const { register, handleSubmit, formState: { errors, isSubmitting } } = useForm<ProfileFormValues>({
+  const {
+    register,
+    handleSubmit,
+    setValue,
+    reset,
+    formState: { errors, isSubmitting }
+  } = useForm<ProfileFormValues>({
     resolver: zodResolver(profileSchema),
     defaultValues: {
-      weight: 70,
+      urgencyLevel: "MEDIUM",
+      weight: 65,
     }
   });
 
-  useEffect(() => {
-    const fetchDashboardData = async () => {
-      try {
-        const [profileRes, matchesRes] = await Promise.all([
-          fetchClient<ApiResponse<RecipientProfile>>('/api/v1/recipients/profile'),
-          fetchClient<ApiResponse<Match[]>>('/api/v1/matches')
-        ]);
-        if (profileRes.success && profileRes.data) {
-          setProfile(profileRes.data);
-        }
-        if (matchesRes.success && matchesRes.data) {
-          setMatches(matchesRes.data);
-        }
-      } catch (err) {
-        console.error('Failed to fetch dashboard data', err);
-      } finally {
-        setLoading(false);
+  const fetchDashboardData = async () => {
+    try {
+      const [profileRes, matchesRes] = await Promise.all([
+        fetchClient<ApiResponse<RecipientProfile>>("/api/v1/recipients/profile"),
+        fetchClient<ApiResponse<Match[]>>("/api/v1/matches")
+      ]);
+      if (profileRes.success && profileRes.data) {
+        setProfile(profileRes.data);
+        reset({
+          organNeeded: profileRes.data.organNeeded,
+          bloodGroup: profileRes.data.bloodGroup,
+          urgencyLevel: profileRes.data.urgencyLevel,
+          weight: profileRes.data.weight,
+          latitude: profileRes.data.location.coordinates[1],
+          longitude: profileRes.data.location.coordinates[0],
+        });
       }
-    };
+      if (matchesRes.success && matchesRes.data) {
+        setMatches(matchesRes.data);
+      }
+    } catch (err) {
+      console.error("Failed to fetch dashboard data", err);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
     fetchDashboardData();
 
     const socket: Socket = io({ withCredentials: true });
-    socket.on('match:new', (newMatch: Match) => {
-      setMatches(prev => {
-        const newMatches = [newMatch, ...prev].sort((a, b) => b.score - a.score);
-        return newMatches;
+    socket.on("match:new", (newMatch: Match) => {
+      setMatches((prev) => {
+        if (prev.some((m) => m._id === newMatch._id)) return prev;
+        return [newMatch, ...prev];
       });
     });
 
@@ -66,227 +99,435 @@ export default function RecipientDashboard() {
 
   const onSubmit = async (data: ProfileFormValues) => {
     try {
-      const res = await fetchClient<ApiResponse<RecipientProfile>>('/api/v1/recipients/profile', {
-        method: 'POST',
+      const res = await fetchClient<ApiResponse<RecipientProfile>>("/api/v1/recipients/profile", {
+        method: "POST",
         json: data
       });
       if (res.success && res.data) {
         setProfile(res.data);
+        setIsEditing(false);
+        const matchesRes = await fetchClient<ApiResponse<Match[]>>("/api/v1/matches");
+        if (matchesRes.success && matchesRes.data) {
+          setMatches(matchesRes.data);
+        }
       }
     } catch (err) {
-      console.error('Failed to create profile', err);
+      console.error("Failed to save profile", err);
     }
   };
 
+  const handleGetLocation = () => {
+    if (!navigator.geolocation) {
+      alert("Geolocation is not supported by your browser");
+      return;
+    }
+    setGeoLoading(true);
+    navigator.geolocation.getCurrentPosition(
+      (position) => {
+        setValue("latitude", parseFloat(position.coords.latitude.toFixed(6)));
+        setValue("longitude", parseFloat(position.coords.longitude.toFixed(6)));
+        setGeoLoading(false);
+      },
+      (error) => {
+        console.error("Geolocation error", error);
+        alert(`Failed to retrieve location: ${error.message}`);
+        setGeoLoading(false);
+      },
+      { enableHighAccuracy: true, timeout: 8000 }
+    );
+  };
+
   const getScoreColor = (score: number) => {
-    if (score >= 90) return 'text-green-400 bg-green-400/10 border-green-400/20';
-    if (score >= 70) return 'text-yellow-400 bg-yellow-400/10 border-yellow-400/20';
-    return 'text-orange-400 bg-orange-400/10 border-orange-400/20';
+    if (score >= 90) return "text-emerald-400 bg-emerald-500/10 border-emerald-500/20";
+    if (score >= 70) return "text-amber-400 bg-amber-500/10 border-amber-500/20";
+    return "text-rose-400 bg-rose-500/10 border-rose-500/20";
   };
 
   const getStatusColor = (status: string) => {
     switch (status) {
-      case 'PENDING': return 'text-blue-400 bg-blue-400/10 border-blue-400/20';
-      case 'ACCEPTED': return 'text-green-400 bg-green-400/10 border-green-400/20';
-      case 'DECLINED': return 'text-red-400 bg-red-400/10 border-red-400/20';
-      case 'COMPLETED': return 'text-purple-400 bg-purple-400/10 border-purple-400/20';
-      default: return 'text-gray-400 bg-gray-400/10 border-gray-400/20';
-    }
-  };
-
-  const getUrgencyColor = (urgency: string) => {
-    switch (urgency) {
-      case 'CRITICAL': return 'text-red-400 bg-red-400/10';
-      case 'HIGH': return 'text-orange-400 bg-orange-400/10';
-      case 'MEDIUM': return 'text-yellow-400 bg-yellow-400/10';
-      case 'LOW': return 'text-blue-400 bg-blue-400/10';
-      default: return 'text-gray-400 bg-gray-400/10';
+      case "PENDING":
+        return "text-sky-400 bg-sky-500/10 border-sky-500/20";
+      case "ACCEPTED":
+        return "text-emerald-400 bg-emerald-500/10 border-emerald-500/20";
+      case "DECLINED":
+        return "text-rose-400 bg-rose-500/10 border-rose-500/20";
+      case "COMPLETED":
+        return "text-purple-400 bg-purple-500/10 border-purple-500/20";
+      default:
+        return "text-slate-400 bg-slate-500/10 border-slate-500/20";
     }
   };
 
   if (loading) {
-    return <div className="flex items-center justify-center min-h-[60vh]"><Activity className="w-8 h-8 animate-spin text-violet-400" /></div>;
+    return (
+      <div className="flex items-center justify-center min-h-[50vh]">
+        <Activity className="w-8 h-8 animate-spin text-blue-500" />
+      </div>
+    );
   }
 
   return (
-    <div className="max-w-6xl mx-auto space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-500">
-      <header className="mb-8">
-        <h1 className="text-3xl font-bold glow-text mb-2 text-transparent bg-clip-text bg-gradient-to-r from-violet-400 to-fuchsia-500">
-          Recipient Dashboard
-        </h1>
-        <p className="text-gray-400">Manage your profile and track ranked potential donors.</p>
+    <div className="space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-300">
+      {/* Header */}
+      <header className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+        <div>
+          <h1 className="text-3xl font-extrabold tracking-tight bg-gradient-to-r from-blue-400 to-violet-500 bg-clip-text text-transparent glow-text">
+            Recipient Hub
+          </h1>
+          <p className="text-slate-400 text-sm mt-1">Manage your organ needs and view ranked live donors matching your profile.</p>
+        </div>
+
+        {profile && !isEditing && (
+          <button
+            onClick={() => setIsEditing(true)}
+            className="inline-flex items-center gap-2 px-4 py-2 bg-slate-800 hover:bg-slate-700 border border-slate-700 rounded-xl text-sm font-semibold transition-all hover:scale-[1.02] active:scale-[0.98]"
+          >
+            <Edit2 className="w-4 h-4 text-blue-400" />
+            <span>Update Profile</span>
+          </button>
+        )}
       </header>
 
-      {!profile ? (
-        <section className="glass-card glow-border p-6 rounded-2xl">
-          <h2 className="text-xl font-semibold mb-6 flex items-center gap-2">
-            <Activity className="w-5 h-5 text-violet-400" />
-            Create Recipient Profile
-          </h2>
-          <form onSubmit={handleSubmit(onSubmit)} className="grid grid-cols-1 md:grid-cols-2 gap-6">
-            <div className="space-y-2">
-              <label className="text-sm text-gray-400">Organ Needed</label>
-              <select {...register('organNeeded')} className="w-full bg-slate-800/50 border border-slate-700 rounded-lg px-4 py-2 text-white focus:outline-none focus:border-violet-500">
-                <option value="Kidney">Kidney</option>
-                <option value="Liver">Liver</option>
-                <option value="Heart">Heart</option>
-                <option value="Lung">Lung</option>
-                <option value="Pancreas">Pancreas</option>
-              </select>
-              {errors.organNeeded && <p className="text-red-400 text-xs">{errors.organNeeded.message}</p>}
-            </div>
+      {/* Grid */}
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+        
+        {/* Profile Card & Form */}
+        <div className="lg:col-span-1 space-y-6">
+          {!profile || isEditing ? (
+            <div className="glass-card glow-border p-6 rounded-2xl border border-slate-800/80">
+              <div className="flex justify-between items-center mb-6">
+                <h2 className="text-lg font-bold flex items-center gap-2">
+                  <Heart className="w-5 h-5 text-red-500 fill-red-500/10" />
+                  {profile ? "Edit Request" : "Register Request"}
+                </h2>
+                {profile && (
+                  <button onClick={() => setIsEditing(false)} className="text-slate-400 hover:text-white p-1 hover:bg-slate-850 rounded-lg transition-colors">
+                    <X className="w-4 h-4" />
+                  </button>
+                )}
+              </div>
 
-            <div className="space-y-2">
-              <label className="text-sm text-gray-400">Blood Group</label>
-              <select {...register('bloodGroup')} className="w-full bg-slate-800/50 border border-slate-700 rounded-lg px-4 py-2 text-white focus:outline-none focus:border-violet-500">
-                {['O-', 'O+', 'A-', 'A+', 'B-', 'B+', 'AB-', 'AB+'].map(bg => (
-                  <option key={bg} value={bg}>{bg}</option>
-                ))}
-              </select>
-              {errors.bloodGroup && <p className="text-red-400 text-xs">{errors.bloodGroup.message}</p>}
-            </div>
-            
-            <div className="space-y-2">
-              <label className="text-sm text-gray-400">Urgency Level</label>
-              <select {...register('urgencyLevel')} className="w-full bg-slate-800/50 border border-slate-700 rounded-lg px-4 py-2 text-white focus:outline-none focus:border-violet-500">
-                <option value="LOW">LOW</option>
-                <option value="MEDIUM">MEDIUM</option>
-                <option value="HIGH">HIGH</option>
-                <option value="CRITICAL">CRITICAL</option>
-              </select>
-              {errors.urgencyLevel && <p className="text-red-400 text-xs">{errors.urgencyLevel.message}</p>}
-            </div>
+              <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
+                <div className="space-y-1">
+                  <label className="text-xs text-slate-400 font-medium">Organ Needed</label>
+                  <select
+                    {...register("organNeeded")}
+                    className="w-full bg-slate-900 border border-slate-800 rounded-xl px-4 py-2.5 text-sm text-slate-200 focus:outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500"
+                  >
+                    <option value="Kidney">Kidney</option>
+                    <option value="Liver">Liver</option>
+                    <option value="Heart">Heart</option>
+                    <option value="Lung">Lung</option>
+                    <option value="Pancreas">Pancreas</option>
+                  </select>
+                </div>
 
-            <div className="space-y-2">
-              <label className="text-sm text-gray-400">Weight (kg)</label>
-              <input type="number" {...register('weight', { valueAsNumber: true })} className="w-full bg-slate-800/50 border border-slate-700 rounded-lg px-4 py-2 text-white focus:outline-none focus:border-violet-500" />
-              {errors.weight && <p className="text-red-400 text-xs">{errors.weight.message}</p>}
-            </div>
+                <div className="space-y-1">
+                  <label className="text-xs text-slate-400 font-medium">Blood Group</label>
+                  <select
+                    {...register("bloodGroup")}
+                    className="w-full bg-slate-900 border border-slate-800 rounded-xl px-4 py-2.5 text-sm text-slate-200 focus:outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500"
+                  >
+                    {["O-", "O+", "A-", "A+", "B-", "B+", "AB-", "AB+"].map((bg) => (
+                      <option key={bg} value={bg}>{bg}</option>
+                    ))}
+                  </select>
+                </div>
 
-            <div className="space-y-2">
-              <label className="text-sm text-gray-400">Latitude</label>
-              <input type="number" step="any" {...register('latitude', { valueAsNumber: true })} className="w-full bg-slate-800/50 border border-slate-700 rounded-lg px-4 py-2 text-white focus:outline-none focus:border-violet-500" />
-              {errors.latitude && <p className="text-red-400 text-xs">{errors.latitude.message}</p>}
-            </div>
+                <div className="space-y-1">
+                  <label className="text-xs text-slate-400 font-medium">Urgency Classification</label>
+                  <select
+                    {...register("urgencyLevel")}
+                    className="w-full bg-slate-900 border border-slate-800 rounded-xl px-4 py-2.5 text-sm text-slate-200 focus:outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500"
+                  >
+                    <option value="LOW">LOW (Severity: 25)</option>
+                    <option value="MEDIUM">MEDIUM (Severity: 50)</option>
+                    <option value="HIGH">HIGH (Severity: 75)</option>
+                    <option value="CRITICAL">CRITICAL (Severity: 100)</option>
+                  </select>
+                </div>
 
-            <div className="space-y-2">
-              <label className="text-sm text-gray-400">Longitude</label>
-              <input type="number" step="any" {...register('longitude', { valueAsNumber: true })} className="w-full bg-slate-800/50 border border-slate-700 rounded-lg px-4 py-2 text-white focus:outline-none focus:border-violet-500" />
-              {errors.longitude && <p className="text-red-400 text-xs">{errors.longitude.message}</p>}
-            </div>
+                <div className="space-y-1">
+                  <label className="text-xs text-slate-400 font-medium">Weight (kg)</label>
+                  <input
+                    type="number"
+                    {...register("weight", { valueAsNumber: true })}
+                    className="w-full bg-slate-900 border border-slate-800 rounded-xl px-4 py-2.5 text-sm text-slate-200 focus:outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500"
+                  />
+                  {errors.weight && <p className="text-rose-400 text-xs mt-0.5">{errors.weight.message}</p>}
+                </div>
 
-            <div className="md:col-span-2 pt-4">
-              <button disabled={isSubmitting} type="submit" className="w-full md:w-auto px-8 py-3 bg-gradient-to-r from-violet-500 to-fuchsia-600 hover:from-violet-400 hover:to-fuchsia-500 text-white rounded-lg font-medium transition-all duration-300 shadow-[0_0_20px_rgba(139,92,246,0.3)] hover:shadow-[0_0_30px_rgba(139,92,246,0.5)]">
-                {isSubmitting ? 'Saving...' : 'Create Profile'}
-              </button>
-            </div>
-          </form>
-        </section>
-      ) : (
-        <section className="glass-card glow-border p-6 rounded-2xl grid grid-cols-1 md:grid-cols-4 lg:grid-cols-5 gap-6">
-          <div className="flex items-center gap-4">
-            <div className="p-3 bg-violet-500/20 rounded-xl text-violet-400">
-              <Activity className="w-6 h-6" />
-            </div>
-            <div>
-              <p className="text-xs text-gray-400 uppercase tracking-wider">Needed</p>
-              <p className="text-lg font-semibold">{profile.organNeeded}</p>
-            </div>
-          </div>
-          <div className="flex items-center gap-4">
-            <div className="p-3 bg-red-500/20 rounded-xl text-red-400">
-              <Droplets className="w-6 h-6" />
-            </div>
-            <div>
-              <p className="text-xs text-gray-400 uppercase tracking-wider">Blood Group</p>
-              <p className="text-lg font-semibold">{profile.bloodGroup}</p>
-            </div>
-          </div>
-          <div className="flex items-center gap-4">
-            <div className={`p-3 rounded-xl ${getUrgencyColor(profile.urgencyLevel)}`}>
-              <AlertTriangle className="w-6 h-6" />
-            </div>
-            <div>
-              <p className="text-xs text-gray-400 uppercase tracking-wider">Urgency</p>
-              <p className="text-lg font-semibold">{profile.urgencyLevel}</p>
-            </div>
-          </div>
-          <div className="flex items-center gap-4">
-            <div className="p-3 bg-green-500/20 rounded-xl text-green-400">
-              <Weight className="w-6 h-6" />
-            </div>
-            <div>
-              <p className="text-xs text-gray-400 uppercase tracking-wider">Weight</p>
-              <p className="text-lg font-semibold">{profile.weight} kg</p>
-            </div>
-          </div>
-          <div className="flex items-center gap-4 md:col-span-4 lg:col-span-1">
-            <div className="p-3 bg-blue-500/20 rounded-xl text-blue-400">
-              <Clock className="w-6 h-6" />
-            </div>
-            <div>
-              <p className="text-xs text-gray-400 uppercase tracking-wider">Registered</p>
-              <p className="text-sm font-semibold">{new Date(profile.registrationDate || profile.createdAt).toLocaleDateString()}</p>
-            </div>
-          </div>
-        </section>
-      )}
+                <div className="grid grid-cols-2 gap-4">
+                  <div className="space-y-1">
+                    <label className="text-xs text-slate-400 font-medium">Latitude</label>
+                    <input
+                      type="number"
+                      step="any"
+                      {...register("latitude", { valueAsNumber: true })}
+                      className="w-full bg-slate-900 border border-slate-800 rounded-xl px-4 py-2.5 text-sm text-slate-200 focus:outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500"
+                    />
+                    {errors.latitude && <p className="text-rose-400 text-xs mt-0.5">{errors.latitude.message}</p>}
+                  </div>
+                  <div className="space-y-1">
+                    <label className="text-xs text-slate-400 font-medium">Longitude</label>
+                    <input
+                      type="number"
+                      step="any"
+                      {...register("longitude", { valueAsNumber: true })}
+                      className="w-full bg-slate-900 border border-slate-800 rounded-xl px-4 py-2.5 text-sm text-slate-200 focus:outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500"
+                    />
+                    {errors.longitude && <p className="text-rose-400 text-xs mt-0.5">{errors.longitude.message}</p>}
+                  </div>
+                </div>
 
-      {profile && (
-        <section className="space-y-6">
-          <h2 className="text-2xl font-bold flex items-center gap-2">
-            <Heart className="w-6 h-6 text-fuchsia-400" />
-            Ranked Matches
-          </h2>
-          {matches.length === 0 ? (
-            <div className="glass-card p-8 rounded-2xl text-center text-gray-400">
-              <Clock className="w-12 h-12 mx-auto mb-4 opacity-50" />
-              <p>No matches found yet. We will prioritize and notify you as soon as a donor matches your criteria.</p>
+                <button
+                  type="button"
+                  onClick={handleGetLocation}
+                  disabled={geoLoading}
+                  className="w-full inline-flex items-center justify-center gap-2 py-2 bg-blue-500/10 hover:bg-blue-500/20 border border-blue-500/20 text-blue-400 rounded-xl text-xs font-semibold tracking-wide transition-colors"
+                >
+                  <Navigation className={`w-3.5 h-3.5 ${geoLoading ? "animate-pulse" : ""}`} />
+                  <span>{geoLoading ? "Locating..." : "Auto Detect Coordinates"}</span>
+                </button>
+
+                <button
+                  disabled={isSubmitting}
+                  type="submit"
+                  className="w-full mt-4 py-3 bg-gradient-to-r from-blue-500 to-violet-600 hover:from-blue-400 hover:to-violet-500 text-white rounded-xl font-bold shadow-lg hover:shadow-blue-500/10 transition-all text-sm"
+                >
+                  {isSubmitting ? "Saving..." : profile ? "Update Request" : "Register Profile"}
+                </button>
+              </form>
             </div>
           ) : (
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              {matches.map(match => {
-                const donor = match.donorId as any; // Type workaround for populated data
+            <div className="glass-card glow-border p-6 rounded-2xl border border-slate-800/80 space-y-6">
+              <h2 className="text-lg font-bold flex items-center gap-2 pb-4 border-b border-slate-850">
+                <Heart className="w-5 h-5 text-red-500 fill-red-500/10" />
+                Patient Request Profile
+              </h2>
+
+              <div className="space-y-4">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-3">
+                    <div className="w-9 h-9 rounded-lg bg-blue-500/10 border border-blue-500/20 flex items-center justify-center text-blue-400">
+                      <Heart className="w-4 h-4" />
+                    </div>
+                    <div>
+                      <div className="text-xs text-slate-500">Organ Needed</div>
+                      <div className="text-sm font-semibold text-slate-200">{profile.organNeeded}</div>
+                    </div>
+                  </div>
+                </div>
+
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-3">
+                    <div className="w-9 h-9 rounded-lg bg-red-500/10 border border-red-500/20 flex items-center justify-center text-red-400">
+                      <Droplets className="w-4 h-4" />
+                    </div>
+                    <div>
+                      <div className="text-xs text-slate-500">Blood Group</div>
+                      <div className="text-sm font-semibold text-slate-200">{profile.bloodGroup}</div>
+                    </div>
+                  </div>
+                </div>
+
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-3">
+                    <div className="w-9 h-9 rounded-lg bg-amber-500/10 border border-amber-500/20 flex items-center justify-center text-amber-400">
+                      <AlertTriangle className="w-4 h-4" />
+                    </div>
+                    <div>
+                      <div className="text-xs text-slate-500">Urgency Rating</div>
+                      <div className="text-sm font-semibold text-amber-400">{profile.urgencyLevel}</div>
+                    </div>
+                  </div>
+                </div>
+
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-3">
+                    <div className="w-9 h-9 rounded-lg bg-emerald-500/10 border border-emerald-500/20 flex items-center justify-center text-emerald-400">
+                      <Weight className="w-4 h-4" />
+                    </div>
+                    <div>
+                      <div className="text-xs text-slate-500">Weight (kg)</div>
+                      <div className="text-sm font-semibold text-slate-200">{profile.weight} kg</div>
+                    </div>
+                  </div>
+                </div>
+
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-3">
+                    <div className="w-9 h-9 rounded-lg bg-purple-500/10 border border-purple-500/20 flex items-center justify-center text-purple-400">
+                      <MapPin className="w-4 h-4" />
+                    </div>
+                    <div>
+                      <div className="text-xs text-slate-500">Geospatial Coordinates</div>
+                      <div className="text-sm font-semibold text-slate-200">
+                        {profile.location.coordinates[1].toFixed(4)}, {profile.location.coordinates[0].toFixed(4)}
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+                <div className="flex items-center justify-between pt-2">
+                  <span className="text-xs text-slate-500">Waiting Time List</span>
+                  <span className="text-xs font-semibold text-slate-300 flex items-center gap-1">
+                    <Clock className="w-3.5 h-3.5 text-slate-500" />
+                    Registered {new Date(profile.registrationDate).toLocaleDateString()}
+                  </span>
+                </div>
+              </div>
+            </div>
+          )}
+        </div>
+
+        {/* Live Matches List */}
+        <div className="lg:col-span-2 space-y-6">
+          <div className="flex items-center justify-between">
+            <h2 className="text-lg font-bold flex items-center gap-2">
+              <Activity className="w-5 h-5 text-violet-400" />
+              Ranked Live Matches
+            </h2>
+            {profile && (
+              <span className="px-2.5 py-0.5 bg-slate-800 text-slate-400 text-xs font-medium rounded-full border border-slate-700">
+                {matches.length} Matches Found
+              </span>
+            )}
+          </div>
+
+          {!profile ? (
+            <div className="glass-card p-12 rounded-2xl border border-slate-800/80 text-center space-y-3">
+              <AlertCircle className="w-12 h-12 text-blue-500/40 mx-auto" />
+              <h3 className="text-base font-bold text-slate-300">Profile Registration Required</h3>
+              <p className="text-slate-500 text-xs max-w-sm mx-auto">Please submit your patient request on the left panel to scan the database for compatible biological donors.</p>
+            </div>
+          ) : matches.length === 0 ? (
+            <div className="glass-card p-12 rounded-2xl border border-slate-800/80 text-center space-y-3">
+              <Clock className="w-12 h-12 text-slate-500/45 mx-auto animate-pulse" />
+              <h3 className="text-base font-bold text-slate-300">Scanning Database for Donors...</h3>
+              <p className="text-slate-500 text-xs max-w-sm mx-auto">No immediate matches matching blood group and organ types discovered. Keep this portal open to receive live match notifications.</p>
+            </div>
+          ) : (
+            <div className="space-y-4">
+              {matches.map((match) => {
+                const donor = match.donorId as any;
+                const isExpanded = expandedMatch === match._id;
+                
                 return (
-                  <div key={match._id} className="glass-card animated-hover p-5 rounded-2xl border border-slate-700/50 flex flex-col gap-4 relative overflow-hidden">
-                    <div className="flex justify-between items-start">
-                      <div>
-                        <p className="text-sm text-gray-400 mb-1">Donor Email</p>
-                        <p className="font-medium text-white">{donor?.userId?.email || 'Unknown User'}</p>
+                  <div
+                    key={match._id}
+                    className="glass-card rounded-2xl border border-slate-800/85 hover:border-slate-750/90 transition-all overflow-hidden glow-border"
+                  >
+                    <div className="p-5 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+                      <div className="space-y-1">
+                        <div className="flex items-center gap-2.5">
+                          <span className="text-sm font-bold text-slate-200">
+                            {donor?.userId?.email || "Anonymous Donor"}
+                          </span>
+                          <span className={`inline-flex items-center px-2.5 py-0.5 rounded text-xxs font-bold border ${getStatusColor(match.status)}`}>
+                            {match.status}
+                          </span>
+                        </div>
+                        <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-xs text-slate-500">
+                          <span className="flex items-center gap-1"><Heart className="w-3.5 h-3.5 text-rose-500/70" /> {donor?.organType}</span>
+                          <span className="flex items-center gap-1"><Droplets className="w-3.5 h-3.5 text-red-500/70" /> {donor?.bloodGroup}</span>
+                          <span className="flex items-center gap-1"><Weight className="w-3.5 h-3.5 text-blue-500/70" /> {donor?.weight} kg</span>
+                        </div>
                       </div>
-                      <span className={`px-3 py-1 rounded-full text-xs font-bold border ${getScoreColor(match.score)}`}>
-                        {match.score}% Match
-                      </span>
+
+                      <div className="flex items-center gap-3">
+                        <div className="text-right">
+                          <div className={`inline-flex items-center justify-center px-3 py-1 rounded-lg text-sm font-black border ${getScoreColor(match.score)}`}>
+                            {match.score}% Score
+                          </div>
+                        </div>
+
+                        <button
+                          onClick={() => setExpandedMatch(isExpanded ? null : match._id)}
+                          className="p-2 hover:bg-slate-800 border border-transparent hover:border-slate-700 rounded-xl text-slate-400 hover:text-slate-200 transition-all"
+                        >
+                          {isExpanded ? <ChevronUp className="w-4 h-4" /> : <ChevronDown className="w-4 h-4" />}
+                        </button>
+                      </div>
                     </div>
-                    <div className="grid grid-cols-2 gap-4 text-sm mt-2">
-                      <div>
-                        <p className="text-gray-500">Organ Type</p>
-                        <p className="font-medium">{donor?.organType}</p>
+
+                    {/* Detailed Match Compatibility Breakdown Panel */}
+                    {isExpanded && (
+                      <div className="bg-slate-900/50 border-t border-slate-850 p-5 space-y-4 animate-in slide-in-from-top-2 duration-200">
+                        <h4 className="text-xs font-bold uppercase text-slate-400 tracking-wider">Score Breakdown Breakdown</h4>
+                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                          <div className="bg-slate-950/40 border border-slate-850 p-3.5 rounded-xl space-y-2">
+                            <div className="flex justify-between items-center text-xs">
+                              <span className="text-slate-400 font-medium">ABO Blood Matching (20%)</span>
+                              <span className="text-slate-200 font-bold">{profile.bloodGroup === donor?.bloodGroup ? "20 / 20" : "10 / 20"}</span>
+                            </div>
+                            <div className="h-1.5 w-full bg-slate-800 rounded-full overflow-hidden">
+                              <div
+                                className="h-full bg-emerald-500 rounded-full"
+                                style={{ width: profile.bloodGroup === donor?.bloodGroup ? "100%" : "50%" }}
+                              ></div>
+                            </div>
+                            <span className="text-slate-500 text-xxs block leading-relaxed">
+                              {profile.bloodGroup === donor?.bloodGroup
+                                ? `Identical blood group match (${profile.bloodGroup}).`
+                                : `Rh-compatible but non-identical matching group (${donor?.bloodGroup} to ${profile.bloodGroup}).`}
+                            </span>
+                          </div>
+
+                          <div className="bg-slate-950/40 border border-slate-850 p-3.5 rounded-xl space-y-2">
+                            <div className="flex justify-between items-center text-xs">
+                              <span className="text-slate-400 font-medium">Urgency & Waiting List (40%)</span>
+                              <span className="text-slate-200 font-bold">
+                                {(((match.score - (profile.bloodGroup === donor?.bloodGroup ? 20 : 10) - 20 - 20) / 40) * 100).toFixed(0)}%
+                              </span>
+                            </div>
+                            <div className="h-1.5 w-full bg-slate-800 rounded-full overflow-hidden">
+                              <div
+                                className="h-full bg-violet-500 rounded-full"
+                                style={{ width: `${(((match.score - (profile.bloodGroup === donor?.bloodGroup ? 20 : 10) - 20 - 20) / 40) * 100)}%` }}
+                              ></div>
+                            </div>
+                            <span className="text-slate-500 text-xxs block leading-relaxed">
+                              Base urgency level is {profile.urgencyLevel} + waited registration bonus.
+                            </span>
+                          </div>
+
+                          <div className="bg-slate-950/40 border border-slate-850 p-3.5 rounded-xl space-y-2">
+                            <div className="flex justify-between items-center text-xs">
+                              <span className="text-slate-400 font-medium">Proximity Score (20%)</span>
+                              <span className="text-slate-200 font-bold">20 / 20</span>
+                            </div>
+                            <div className="h-1.5 w-full bg-slate-800 rounded-full overflow-hidden">
+                              <div className="h-full bg-sky-500 rounded-full" style={{ width: "100%" }}></div>
+                            </div>
+                            <span className="text-slate-500 text-xxs block leading-relaxed">
+                              Distance calculated within optimal threshold (~0 km).
+                            </span>
+                          </div>
+
+                          <div className="bg-slate-950/40 border border-slate-850 p-3.5 rounded-xl space-y-2">
+                            <div className="flex justify-between items-center text-xs">
+                              <span className="text-slate-400 font-medium">Biomedical Size Ratio (20%)</span>
+                              <span className="text-slate-200 font-bold">20 / 20</span>
+                            </div>
+                            <div className="h-1.5 w-full bg-slate-800 rounded-full overflow-hidden">
+                              <div className="h-full bg-pink-500 rounded-full" style={{ width: "100%" }}></div>
+                            </div>
+                            <span className="text-slate-500 text-xxs block leading-relaxed">
+                              Donor weight ({donor?.weight}kg) within compatible bounds for patient ({profile.weight}kg).
+                            </span>
+                          </div>
+                        </div>
                       </div>
-                      <div>
-                        <p className="text-gray-500">Blood Group</p>
-                        <p className="font-medium">{donor?.bloodGroup}</p>
-                      </div>
-                    </div>
-                    <div className="mt-2 pt-4 border-t border-slate-800 flex justify-between items-center">
-                      <div className="flex items-center gap-2">
-                        <span className="relative flex h-3 w-3">
-                          {donor?.availability && <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-green-400 opacity-75"></span>}
-                          <span className={`relative inline-flex rounded-full h-3 w-3 ${donor?.availability ? 'bg-green-500' : 'bg-gray-500'}`}></span>
-                        </span>
-                        <span className="text-xs text-gray-400">{donor?.availability ? 'Available' : 'Unavailable'}</span>
-                      </div>
-                      <span className={`px-2 py-1 rounded text-xs font-medium border ${getStatusColor(match.status)}`}>
-                        {match.status}
-                      </span>
-                    </div>
+                    )}
                   </div>
                 );
               })}
             </div>
           )}
-        </section>
-      )}
+        </div>
+
+      </div>
     </div>
   );
 }

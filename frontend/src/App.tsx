@@ -2,8 +2,10 @@ import { Suspense, lazy } from "react";
 import { Routes, Route, Navigate } from "react-router-dom";
 import { AuthProvider } from "./context/AuthContext";
 import AuthGuard from "./components/AuthGuard";
+import Navbar from "./components/Navbar";
 
 // Lazy-loaded page components for code splitting
+const LandingPage = lazy(() => import("./pages/LandingPage"));
 const LoginPage = lazy(() => import("./pages/LoginPage"));
 const RegisterPage = lazy(() => import("./pages/RegisterPage"));
 const DonorDashboard = lazy(() => import("./pages/DonorDashboard"));
@@ -20,19 +22,33 @@ const PageLoader = () => (
   </div>
 );
 
+// Common authenticated layout wrapper containing the Navigation bar
+const DashboardWrapper = ({ children }: { children: React.ReactNode }) => {
+  return (
+    <div className="min-h-screen bg-[#0b0f19] text-slate-100 flex flex-col">
+      <Navbar />
+      <div className="flex-1 w-full max-w-7xl mx-auto px-6 py-8">
+        {children}
+      </div>
+    </div>
+  );
+};
+
 function App() {
   return (
     <AuthProvider>
       <Suspense fallback={<PageLoader />}>
         <Routes>
-          <Route path="/" element={<Navigate to="/login" replace />} />
+          <Route path="/" element={<LandingPage />} />
           <Route path="/login" element={<LoginPage />} />
           <Route path="/register" element={<RegisterPage />} />
           <Route
             path="/donor"
             element={
               <AuthGuard allowedRoles={["donor"]}>
-                <DonorDashboard />
+                <DashboardWrapper>
+                  <DonorDashboard />
+                </DashboardWrapper>
               </AuthGuard>
             }
           />
@@ -40,7 +56,9 @@ function App() {
             path="/recipient"
             element={
               <AuthGuard allowedRoles={["recipient"]}>
-                <RecipientDashboard />
+                <DashboardWrapper>
+                  <RecipientDashboard />
+                </DashboardWrapper>
               </AuthGuard>
             }
           />
@@ -48,7 +66,9 @@ function App() {
             path="/admin"
             element={
               <AuthGuard allowedRoles={["admin"]}>
-                <AdminDashboard />
+                <DashboardWrapper>
+                  <AdminDashboard />
+                </DashboardWrapper>
               </AuthGuard>
             }
           />
