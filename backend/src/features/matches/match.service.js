@@ -169,7 +169,7 @@ class MatchService {
    */
   async getMatchesForDonorUser(userId) {
     const donor = await Donor.findOne({ userId });
-    if (!donor) throw new NotFoundError("Donor profile not found");
+    if (!donor) return [];
 
     // Fetch existing matches and populate recipient profile & user details
     return Match.find({ donorId: donor._id })
@@ -188,7 +188,7 @@ class MatchService {
    */
   async getMatchesForRecipientUser(userId) {
     const recipient = await Recipient.findOne({ userId });
-    if (!recipient) throw new NotFoundError("Recipient profile not found");
+    if (!recipient) return [];
 
     return Match.find({ recipientId: recipient._id })
       .populate({

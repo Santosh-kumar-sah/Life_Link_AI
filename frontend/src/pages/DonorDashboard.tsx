@@ -66,7 +66,7 @@ export default function DonorDashboard() {
     try {
       const res = await fetchClient<ApiResponse<DonorProfile>>('/api/v1/donors/profile', {
         method: 'POST',
-        body: JSON.stringify(data)
+        json: data
       });
       if (res.success && res.data) {
         setProfile(res.data);

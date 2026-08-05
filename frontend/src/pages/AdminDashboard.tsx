@@ -51,7 +51,7 @@ export default function AdminDashboard() {
     try {
       const res = await fetchClient<ApiResponse<Match>>(`/api/v1/matches/admin/${matchId}`, {
         method: 'PATCH',
-        body: JSON.stringify({ status })
+        json: { status }
       });
       
       if (res.success && res.data) {

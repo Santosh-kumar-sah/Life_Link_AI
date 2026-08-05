@@ -68,7 +68,7 @@ export default function RecipientDashboard() {
     try {
       const res = await fetchClient<ApiResponse<RecipientProfile>>('/api/v1/recipients/profile', {
         method: 'POST',
-        body: JSON.stringify(data)
+        json: data
       });
       if (res.success && res.data) {
         setProfile(res.data);
