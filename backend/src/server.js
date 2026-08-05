@@ -3,8 +3,12 @@ import app from "./app.js";
 import config from "./config/index.js";
 import logger from "./config/logger.js";
 import connectDB from "./config/db.js";
+import { initializeSocket } from "./socket/index.js";
 
 const server = createServer(app);
+
+// Initialize Socket.io on top of httpServer
+initializeSocket(server);
 
 // Simple health checking for process lifecycle
 const gracefulShutdown = (signal) => {
@@ -37,4 +41,5 @@ const startServer = async () => {
 };
 
 startServer();
+
 

@@ -36,13 +36,13 @@ export const AuthGuard: React.FC<AuthGuardProps> = ({ children, allowedRoles }) 
   // Logged in but doesn't have required role -> redirect to their default home dashboard
   if (allowedRoles && !allowedRoles.includes(user.role)) {
     if (user.role === "donor") {
-      return <Navigate to="/donor-dashboard" replace />;
+      return <Navigate to="/donor" replace />;
     }
     if (user.role === "recipient") {
-      return <Navigate to="/recipient-dashboard" replace />;
+      return <Navigate to="/recipient" replace />;
     }
     if (user.role === "admin") {
-      return <Navigate to="/admin-dashboard" replace />;
+      return <Navigate to="/admin" replace />;
     }
     return <Navigate to="/login" replace />;
   }

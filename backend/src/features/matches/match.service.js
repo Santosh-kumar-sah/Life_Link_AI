@@ -1,6 +1,7 @@
 import Match from "./match.model.js";
 import Donor from "../donor/donor.model.js";
 import Recipient from "../recipient/recipient.model.js";
+import User from "../auth/user.model.js";
 import { BLOOD_COMPATIBILITY, calculateMatchScore } from "./matchingEngine.js";
 import { NotFoundError, ValidationError } from "../../utils/ApiError.js";
 
@@ -62,6 +63,9 @@ class MatchService {
       }
     }
 
+    const donorUser = await User.findById(donor.userId);
+    if (!donorUser) return [];
+
     const savedMatches = [];
     for (const matchData of matchesToSave) {
       const match = await Match.findOneAndUpdate(
@@ -69,6 +73,17 @@ class MatchService {
         { score: matchData.score }, // Update score if compatibility calculations changed
         { new: true, upsert: true, setDefaultsOnInsert: true }
       );
+
+      const populatedMatch = await Match.findById(match._id)
+        .populate("donorId")
+        .populate("recipientId");
+
+      const recipientUser = await User.findById(populatedMatch.recipientId.userId);
+      if (recipientUser) {
+        const { emitNewMatchNotification } = await import("../../socket/index.js");
+        emitNewMatchNotification(populatedMatch, donorUser, recipientUser);
+      }
+
       savedMatches.push(match);
     }
 
@@ -119,6 +134,9 @@ class MatchService {
       }
     }
 
+    const recipientUser = await User.findById(recipient.userId);
+    if (!recipientUser) return [];
+
     const savedMatches = [];
     for (const matchData of matchesToSave) {
       const match = await Match.findOneAndUpdate(
@@ -126,6 +144,17 @@ class MatchService {
         { score: matchData.score },
         { new: true, upsert: true, setDefaultsOnInsert: true }
       );
+
+      const populatedMatch = await Match.findById(match._id)
+        .populate("donorId")
+        .populate("recipientId");
+
+      const donorUser = await User.findById(populatedMatch.donorId.userId);
+      if (donorUser) {
+        const { emitNewMatchNotification } = await import("../../socket/index.js");
+        emitNewMatchNotification(populatedMatch, donorUser, recipientUser);
+      }
+
       savedMatches.push(match);
     }
 

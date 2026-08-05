@@ -1,21 +1,61 @@
-import React from "react";
+import { Suspense, lazy } from "react";
+import { Routes, Route, Navigate } from "react-router-dom";
+import { AuthProvider } from "./context/AuthContext";
+import AuthGuard from "./components/AuthGuard";
+
+// Lazy-loaded page components for code splitting
+const LoginPage = lazy(() => import("./pages/LoginPage"));
+const RegisterPage = lazy(() => import("./pages/RegisterPage"));
+const DonorDashboard = lazy(() => import("./pages/DonorDashboard"));
+const RecipientDashboard = lazy(() => import("./pages/RecipientDashboard"));
+const AdminDashboard = lazy(() => import("./pages/AdminDashboard"));
+
+// Centered loading spinner matching dark theme
+const PageLoader = () => (
+  <div className="flex items-center justify-center min-h-screen bg-[#0b0f19]">
+    <div className="relative w-16 h-16">
+      <div className="absolute inset-0 rounded-full border-4 border-blue-500/20"></div>
+      <div className="absolute inset-0 rounded-full border-4 border-t-blue-500 border-r-transparent border-b-transparent border-l-transparent animate-spin"></div>
+    </div>
+  </div>
+);
 
 function App() {
   return (
-    <div className="flex flex-col items-center justify-center min-h-screen text-center p-4">
-      <div className="glass-card max-w-md p-8 rounded-2xl shadow-xl border border-slate-800 glow-border">
-        <h1 className="text-3xl font-extrabold tracking-tight bg-gradient-to-r from-blue-400 to-violet-500 bg-clip-text text-transparent glow-text mb-4">
-          LifeLink v1
-        </h1>
-        <p className="text-slate-400 mb-6">
-          Real-Time Organ Donation Matching Platform. Project Scaffold Complete.
-        </p>
-        <div className="inline-flex items-center gap-2 px-4 py-2 bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 rounded-full text-sm font-medium">
-          <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span>
-          Ready for Development
-        </div>
-      </div>
-    </div>
+    <AuthProvider>
+      <Suspense fallback={<PageLoader />}>
+        <Routes>
+          <Route path="/" element={<Navigate to="/login" replace />} />
+          <Route path="/login" element={<LoginPage />} />
+          <Route path="/register" element={<RegisterPage />} />
+          <Route
+            path="/donor"
+            element={
+              <AuthGuard allowedRoles={["donor"]}>
+                <DonorDashboard />
+              </AuthGuard>
+            }
+          />
+          <Route
+            path="/recipient"
+            element={
+              <AuthGuard allowedRoles={["recipient"]}>
+                <RecipientDashboard />
+              </AuthGuard>
+            }
+          />
+          <Route
+            path="/admin"
+            element={
+              <AuthGuard allowedRoles={["admin"]}>
+                <AdminDashboard />
+              </AuthGuard>
+            }
+          />
+          <Route path="*" element={<Navigate to="/login" replace />} />
+        </Routes>
+      </Suspense>
+    </AuthProvider>
   );
 }
 
