@@ -48,19 +48,54 @@ export const adminGetMatches = asyncHandler(async (req, res) => {
  * @type {import('express').RequestHandler}
  */
 export const adminUpdateMatchStatus = asyncHandler(async (req, res) => {
-  const { matchId } = req.params;
-  const { status } = req.body;
+  const match = await matchService.updateMatchStatus(req.params.matchId, req.body.status);
+  res.status(200).json({ success: true, data: match });
+});
 
-  const updatedMatch = await matchService.updateMatchStatus(matchId, status);
+export const getDonorMatches = asyncHandler(async (req, res) => {
+  const Donor = (await import("../donor/donor.model.js")).default;
+  const Match = (await import("./match.model.js")).default;
+  const donor = await Donor.findOne({ userId: req.user.userId });
+  const matches = await Match.find({ donorId: donor._id, status: "PENDING" }).populate("recipientId", "organNeeded hospital urgencyLevel");
+  res.json({ success: true, data: matches });
+});
 
-  res.status(200).json({
-    success: true,
-    data: updatedMatch
-  });
+export const getRecipientMatches = asyncHandler(async (req, res) => {
+  const Recipient = (await import("../recipient/recipient.model.js")).default;
+  const Match = (await import("./match.model.js")).default;
+  const recipient = await Recipient.findOne({ userId: req.user.userId });
+  const matches = await Match.find({ recipientId: recipient._id, status: "PENDING" }).populate("donorId", "organs hospital");
+  res.json({ success: true, data: matches });
+});
+
+export const respondToMatch = asyncHandler(async (req, res) => {
+  const Match = (await import("./match.model.js")).default;
+  const Donor = (await import("../donor/donor.model.js")).default;
+  const match = await Match.findById(req.params.matchId);
+  const { action, declineReason } = req.body;
+  
+  if (req.user.role === "donor") {
+    match.donorStatus = action;
+  } else if (req.user.role === "recipient") {
+    match.recipientStatus = action;
+  }
+  
+  if (action === "DECLINED") {
+    match.status = "DECLINED";
+    match.declineReason = declineReason;
+  } else if (match.donorStatus === "ACCEPTED" && match.recipientStatus === "ACCEPTED") {
+    match.status = "ACCEPTED";
+  }
+  
+  await match.save();
+  res.json({ success: true, data: match });
 });
 
 export default {
   getMyMatches,
   adminGetMatches,
-  adminUpdateMatchStatus
+  adminUpdateMatchStatus,
+  getDonorMatches,
+  getRecipientMatches,
+  respondToMatch
 };

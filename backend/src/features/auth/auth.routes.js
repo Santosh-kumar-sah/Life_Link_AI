@@ -40,5 +40,11 @@ router.post("/refresh", refresh);
 router.post("/logout", logout);
 router.get("/me", authenticate, me);
 
+import { inviteAdmin, updateAdminStatus } from "./auth.controller.js";
+import { authorize } from "../../middleware/authenticate.js";
+
+router.post("/admin/invite", authenticate, authorize("admin"), inviteAdmin);
+router.patch("/admin/:adminId/status", authenticate, authorize("admin"), updateAdminStatus);
+
 export default router;
 export { router as authRoutes };

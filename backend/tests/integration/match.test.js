@@ -70,6 +70,13 @@ describe("Match API Integration Tests", () => {
     };
     await recipientAgent.post("/api/v1/recipients/profile").send(recipientProfile);
 
+    // Override urgencyLevel to HIGH in the database directly to test match scoring calculations
+    const recipientUserDb = await User.findOne({ email: recipientUser.email });
+    await Recipient.updateOne(
+      { userId: recipientUserDb._id },
+      { urgencyLevel: "HIGH" }
+    );
+
     // 2. Create Donor (should trigger match generation)
     await donorAgent.post("/api/v1/auth/register").send(donorUser);
     await donorAgent.post("/api/v1/auth/login").send({
@@ -86,6 +93,21 @@ describe("Match API Integration Tests", () => {
       weight: 70
     };
     await donorAgent.post("/api/v1/donors/profile").send(donorProfile);
+
+    // Fetch the created donor user and profile, and update to active state
+    const dbUser = await User.findOne({ email: donorUser.email });
+    await Donor.updateOne(
+      { userId: dbUser._id },
+      { 
+        status: "active", 
+        explicitConsent: true, 
+        organs: ["Kidney"],
+        verificationDocuments: [{ fileUrl: "doc.pdf", docType: "ID", status: "VERIFIED" }] 
+      }
+    );
+    const donorProfileInDb = await Donor.findOne({ userId: dbUser._id });
+    const matchService = (await import("../../src/features/matches/match.service.js")).default;
+    await matchService.generateMatchesForDonor(donorProfileInDb._id);
 
     // 3. Verify matches exist on Donor side
     const donorMatchRes = await donorAgent.get("/api/v1/matches");

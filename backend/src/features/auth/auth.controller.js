@@ -132,10 +132,32 @@ export const me = asyncHandler(async (req, res) => {
   });
 });
 
+export const inviteAdmin = asyncHandler(async (req, res) => {
+  if (!req.user.isSuperAdmin) throw new AuthError("SuperAdmin only");
+  const { email, password, hospital } = req.body;
+  const user = await authService.register(email, password, "admin");
+  user.hospital = hospital;
+  user.isActive = true;
+  await user.save();
+  res.json({ success: true, data: user });
+});
+
+export const updateAdminStatus = asyncHandler(async (req, res) => {
+  if (!req.user.isSuperAdmin) throw new AuthError("SuperAdmin only");
+  const admin = await User.findById(req.params.adminId);
+  if (admin) {
+    admin.isActive = req.body.isActive;
+    await admin.save();
+  }
+  res.json({ success: true });
+});
+
 export default {
   register,
   login,
   refresh,
   logout,
-  me
+  me,
+  inviteAdmin,
+  updateAdminStatus
 };

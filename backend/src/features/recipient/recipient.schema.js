@@ -9,10 +9,12 @@ export const recipientProfileSchema = z.object({
   }),
   urgencyLevel: z.enum(["LOW", "MEDIUM", "HIGH", "CRITICAL"], {
     errorMap: () => ({ message: "Urgency level must be LOW, MEDIUM, HIGH, or CRITICAL" })
-  }),
+  }).optional(),
   latitude: z.coerce.number().min(-90, "Latitude must be between -90 and 90").max(90, "Latitude must be between -90 and 90"),
   longitude: z.coerce.number().min(-180, "Longitude must be between -180 and 180").max(180, "Longitude must be between -180 and 180"),
-  weight: z.coerce.number().positive("Weight must be a positive number")
+  weight: z.coerce.number().positive("Weight must be a positive number"),
+  hospital: z.string().optional(),
+  medicalHistory: z.string().optional().default("")
 });
 
 export default {

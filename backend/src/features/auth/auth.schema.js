@@ -5,7 +5,8 @@ export const registerSchema = z.object({
   password: z.string().min(8, "Password must be at least 8 characters long"),
   role: z.enum(["donor", "recipient", "admin"], {
     errorMap: () => ({ message: "Role must be 'donor', 'recipient', or 'admin'" })
-  })
+  }),
+  hospital: z.string().optional()
 });
 
 export const loginSchema = z.object({

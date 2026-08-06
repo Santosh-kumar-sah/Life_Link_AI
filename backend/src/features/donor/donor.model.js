@@ -25,11 +25,12 @@ const donorSchema = new mongoose.Schema(
       unique: true,
       index: true
     },
-    organType: {
-      type: String,
-      enum: ["Kidney", "Liver", "Heart", "Lung", "Pancreas"],
-      required: [true, "Organ type is required"]
-    },
+    organs: [
+      {
+        type: String,
+        enum: ["Kidney", "Liver", "Heart", "Lung", "Pancreas"]
+      }
+    ],
     bloodGroup: {
       type: String,
       enum: ["O-", "O+", "A-", "A+", "B-", "B+", "AB-", "AB+"],
@@ -48,6 +49,38 @@ const donorSchema = new mongoose.Schema(
       type: Number,
       required: [true, "Donor weight in kg is required"],
       min: [1, "Weight must be greater than 0"]
+    },
+    donorType: {
+      type: String,
+      enum: ["living", "deceased-registered"],
+      default: "living"
+    },
+    medicalHistory: {
+      type: String,
+      default: ""
+    },
+    hospital: {
+      type: String
+    },
+    explicitConsent: {
+      type: Boolean,
+      default: false
+    },
+    verificationDocuments: {
+      type: [
+        {
+          fileUrl: String,
+          docType: { type: String, enum: ["ID", "medical_records"] },
+          status: { type: String, enum: ["PENDING", "VERIFIED", "REJECTED"], default: "PENDING" },
+          rejectionReason: String
+        }
+      ],
+      default: []
+    },
+    status: {
+      type: String,
+      enum: ["active", "matched", "inactive"],
+      default: "inactive"
     }
   },
   {
@@ -57,6 +90,13 @@ const donorSchema = new mongoose.Schema(
 
 // Define 2dsphere geospatial index for distance queries
 donorSchema.index({ location: "2dsphere" });
+
+donorSchema.virtual("organType").get(function () {
+  return this.organs && this.organs[0];
+});
+
+donorSchema.set("toJSON", { virtuals: true });
+donorSchema.set("toObject", { virtuals: true });
 
 const Donor = mongoose.model("Donor", donorSchema);
 

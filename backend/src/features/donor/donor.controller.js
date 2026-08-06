@@ -29,7 +29,39 @@ export const getMyProfile = asyncHandler(async (req, res) => {
   });
 });
 
+export const updateConsent = asyncHandler(async (req, res) => {
+  const profile = await donorService.createOrUpdateProfile(req.user.userId, { explicitConsent: req.body.explicitConsent });
+  res.json({ success: true, data: profile });
+});
+
+export const uploadDocument = asyncHandler(async (req, res) => {
+  const Donor = (await import("./donor.model.js")).default;
+  const donor = await Donor.findOne({ userId: req.user.userId });
+  if (donor) {
+    donor.verificationDocuments.push({ fileUrl: req.body.fileUrl, docType: req.body.docType, status: "PENDING" });
+    await donor.save();
+  }
+  res.json({ success: true, data: donor });
+});
+
+export const updateOrgans = asyncHandler(async (req, res) => {
+  const profile = await donorService.createOrUpdateProfile(req.user.userId, { organs: req.body.organs });
+  res.json({ success: true, data: profile });
+});
+
+export const getMatchHistory = asyncHandler(async (req, res) => {
+  const Donor = (await import("./donor.model.js")).default;
+  const Match = (await import("../matches/match.model.js")).default;
+  const donor = await Donor.findOne({ userId: req.user.userId });
+  const matches = await Match.find({ donorId: donor._id, status: { $in: ["ACCEPTED", "DECLINED", "COMPLETED"] } });
+  res.json({ success: true, data: matches });
+});
+
 export default {
   updateProfile,
-  getMyProfile
+  getMyProfile,
+  updateConsent,
+  uploadDocument,
+  updateOrgans,
+  getMatchHistory
 };

@@ -14,5 +14,12 @@ router.route("/profile")
   .get(getMyProfile)
   .post(validate({ body: donorProfileSchema }), updateProfile);
 
+import { updateConsent, uploadDocument, updateOrgans, getMatchHistory } from "./donor.controller.js";
+
+router.post("/consent", updateConsent);
+router.post("/documents", uploadDocument);
+router.patch("/organs", updateOrgans);
+router.get("/matches/history", getMatchHistory);
+
 export default router;
 export { router as donorRoutes };

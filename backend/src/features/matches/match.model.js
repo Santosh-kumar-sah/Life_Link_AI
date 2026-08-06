@@ -30,6 +30,26 @@ const matchSchema = new mongoose.Schema(
       type: Date,
       default: Date.now,
       required: true
+    },
+    responseDeadline: {
+      type: Date
+    },
+    proposedBy: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "User"
+    },
+    donorStatus: {
+      type: String,
+      enum: ["PENDING", "ACCEPTED", "DECLINED"],
+      default: "PENDING"
+    },
+    recipientStatus: {
+      type: String,
+      enum: ["PENDING", "ACCEPTED", "DECLINED"],
+      default: "PENDING"
+    },
+    declineReason: {
+      type: String
     }
   },
   {

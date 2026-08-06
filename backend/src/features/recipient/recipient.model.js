@@ -53,6 +53,24 @@ const recipientSchema = new mongoose.Schema(
       type: Date,
       default: Date.now,
       required: true
+    },
+    hospital: {
+      type: String
+    },
+    medicalHistory: {
+      type: String,
+      default: ""
+    },
+    verificationDocuments: {
+      type: [
+        {
+          fileUrl: String,
+          docType: { type: String, enum: ["ID", "physician_referral"] },
+          status: { type: String, enum: ["PENDING", "VERIFIED", "REJECTED"], default: "PENDING" },
+          rejectionReason: String
+        }
+      ],
+      default: []
     }
   },
   {

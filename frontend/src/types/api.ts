@@ -16,14 +16,28 @@ export interface GeoLocation {
   coordinates: [number, number]; // [longitude, latitude]
 }
 
+export interface VerificationDocument {
+  fileUrl: string;
+  docType: string;
+  status: "PENDING" | "VERIFIED" | "REJECTED";
+  rejectionReason?: string;
+}
+
 export interface DonorProfile {
   _id: string;
   userId: string;
-  organType: OrganType;
+  organType?: OrganType; // legacy, keeping for backward compatibility
+  organs: OrganType[];
+  explicitConsent?: boolean;
   bloodGroup: BloodGroup;
   availability: boolean;
   location: GeoLocation;
   weight: number;
+  verificationDocuments?: VerificationDocument[];
+  status?: "active" | "inactive" | "matched";
+  donorType?: string;
+  medicalHistory?: string;
+  hospital?: string;
   createdAt: string;
   updatedAt: string;
 }
@@ -36,6 +50,9 @@ export interface RecipientProfile {
   urgencyLevel: UrgencyLevel;
   location: GeoLocation;
   weight: number;
+  hospital?: string;
+  medicalHistory?: string;
+  verificationDocuments?: VerificationDocument[];
   registrationDate: string;
   createdAt: string;
   updatedAt: string;
@@ -49,9 +66,33 @@ export interface Match {
   recipientId: string | RecipientProfile;
   score: number;
   status: MatchStatus;
+  responseDeadline?: string;
+  proposedBy?: string;
+  donorStatus?: "PENDING" | "ACCEPTED" | "DECLINED";
+  recipientStatus?: "PENDING" | "ACCEPTED" | "DECLINED";
+  declineReason?: string;
   matchedAt: string;
   createdAt: string;
   updatedAt: string;
+}
+
+export interface Notification {
+  _id: string;
+  userId: string;
+  title: string;
+  message: string;
+  read: boolean;
+  type: string;
+  createdAt: string;
+}
+
+export interface Message {
+  _id: string;
+  recipientId: string;
+  text: string;
+  response?: string;
+  status: "PENDING" | "RESOLVED";
+  createdAt: string;
 }
 
 export interface ApiResponse<T> {

@@ -10,6 +10,12 @@ router.use(authenticate);
 // Get user-specific matching records (Donors or Recipients)
 router.get("/", getMyMatches);
 
+import { getDonorMatches, getRecipientMatches, respondToMatch } from "./match.controller.js";
+
+router.get("/donor", authorize("donor"), getDonorMatches);
+router.get("/recipient", authorize("recipient"), getRecipientMatches);
+router.post("/:matchId/respond", respondToMatch);
+
 // Hospital Admin oversight routes
 router.get("/admin", authorize("admin"), adminGetMatches);
 router.patch("/admin/:matchId", authorize("admin"), adminUpdateMatchStatus);

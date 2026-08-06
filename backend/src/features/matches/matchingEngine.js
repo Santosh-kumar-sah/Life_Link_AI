@@ -65,8 +65,8 @@ export function calculateHaversineDistance(lon1, lat1, lon2, lat2) {
  * @returns {number|null} Match compatibility score (0-100), or null if incompatible
  */
 export function calculateMatchScore(donor, recipient, precalculatedDistanceKm = null) {
-  // 1. Organ Compatibility Filter (Strict Check)
-  if (donor.organType !== recipient.organNeeded) {
+  const organsList = donor.organs || (donor.organType ? [donor.organType] : []);
+  if (!organsList.includes(recipient.organNeeded)) {
     return null;
   }
 

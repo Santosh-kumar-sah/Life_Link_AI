@@ -115,7 +115,7 @@ describe("Donor & Recipient Profile CRUD Integration Tests", () => {
       const profilePayload = {
         organNeeded: "Kidney",
         bloodGroup: "A+",
-        urgencyLevel: "HIGH",
+        urgencyLevel: "MEDIUM",
         latitude: 19.0760,
         longitude: 72.8777,
         weight: 65

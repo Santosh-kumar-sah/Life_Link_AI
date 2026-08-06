@@ -2,6 +2,7 @@ import React from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { useAuth } from "../context/AuthContext";
 import { Heart, LogOut, Shield, User as UserIcon } from "lucide-react";
+import { NotificationCenter } from "./NotificationCenter";
 
 export const Navbar: React.FC = () => {
   const { user, logout } = useAuth();
@@ -58,6 +59,8 @@ export const Navbar: React.FC = () => {
                 </div>
               </div>
             </div>
+
+            <NotificationCenter />
 
             <button
               onClick={handleLogout}

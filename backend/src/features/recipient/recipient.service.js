@@ -19,22 +19,36 @@ class RecipientService {
    * @returns {Promise<import('./recipient.model.js').Recipient>} Saved recipient profile document
    */
   async createOrUpdateProfile(userId, data) {
+    const existingProfile = await Recipient.findOne({ userId });
+    
     const updatePayload = {
-      organNeeded: data.organNeeded,
-      bloodGroup: data.bloodGroup,
-      urgencyLevel: data.urgencyLevel,
-      weight: data.weight,
-      location: {
-        type: "Point",
-        coordinates: [data.longitude, data.latitude] // Mongo requires [longitude, latitude]
-      }
+      organNeeded: data.organNeeded !== undefined ? data.organNeeded : existingProfile?.organNeeded,
+      bloodGroup: data.bloodGroup !== undefined ? data.bloodGroup : existingProfile?.bloodGroup,
+      weight: data.weight !== undefined ? data.weight : existingProfile?.weight,
+      hospital: data.hospital !== undefined ? data.hospital : existingProfile?.hospital,
+      medicalHistory: data.medicalHistory !== undefined ? data.medicalHistory : existingProfile?.medicalHistory,
     };
+    
+    if (data.longitude !== undefined && data.latitude !== undefined) {
+       updatePayload.location = {
+         type: "Point",
+         coordinates: [data.longitude, data.latitude]
+       };
+    }
+    
+    // urgencyLevel is read-only to them. 
+    // either keep existing if updating, or default to "MEDIUM" for new
+    if (existingProfile && existingProfile.urgencyLevel) {
+      updatePayload.urgencyLevel = existingProfile.urgencyLevel;
+    } else {
+      updatePayload.urgencyLevel = "MEDIUM"; // default for new
+    }
 
     const options = { new: true, upsert: true, runValidators: true };
 
     const profile = await Recipient.findOneAndUpdate(
       { userId },
-      updatePayload,
+      { $set: updatePayload },
       options
     );
 

@@ -25,6 +25,17 @@ const userSchema = new mongoose.Schema(
     refreshToken: {
       type: String,
       select: false
+    },
+    hospital: {
+      type: String
+    },
+    isActive: {
+      type: Boolean,
+      default: true
+    },
+    isSuperAdmin: {
+      type: Boolean,
+      default: false
     }
   },
   {
