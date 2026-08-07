@@ -15,7 +15,12 @@ class AuthService {
    */
   generateAccessToken(user) {
     return jwt.sign(
-      { userId: user._id.toString(), role: user.role },
+      { 
+        userId: user._id.toString(), 
+        role: user.role,
+        hospital: user.hospital,
+        isSuperAdmin: user.isSuperAdmin
+      },
       config.JWT_ACCESS_SECRET,
       { expiresIn: "15m" }
     );

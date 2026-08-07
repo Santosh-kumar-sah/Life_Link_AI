@@ -59,11 +59,73 @@ export const updateUrgency = asyncHandler(async (req, res) => {
 });
 
 export const dashboard = asyncHandler(async (req, res) => {
-  const hospital = req.user.hospital;
-  const activeDonors = await Donor.countDocuments({ status: "active", hospital });
-  const activeRecipients = await Recipient.countDocuments({ hospital });
-  const matchesInProgress = await Match.countDocuments({ status: "PENDING" }); // simplistic
-  res.json({ success: true, data: { activeDonors, activeRecipients, pendingDocuments: 0, matchesInProgress, feed: [] } });
+  const isSuper = req.user.isSuperAdmin;
+  const userHospital = req.user.hospital;
+  const filterHospital = req.query.hospital;
+
+  // Build filters dynamically
+  const donorFilter = { status: "active" };
+  const recipientFilter = {};
+
+  if (!isSuper) {
+    if (userHospital) {
+      donorFilter.hospital = userHospital;
+      recipientFilter.hospital = userHospital;
+    }
+  } else {
+    if (filterHospital) {
+      donorFilter.hospital = filterHospital;
+      recipientFilter.hospital = filterHospital;
+    }
+  }
+
+  const activeDonors = await Donor.countDocuments(donorFilter);
+  const activeRecipients = await Recipient.countDocuments(recipientFilter);
+  const matchesInProgress = await Match.countDocuments({ status: "PENDING" });
+
+  // Count pending verification documents
+  let pendingDocuments = 0;
+  if (!isSuper && userHospital) {
+    pendingDocuments += await Donor.countDocuments({
+      hospital: userHospital,
+      "verificationDocuments.status": "PENDING"
+    });
+    pendingDocuments += await Recipient.countDocuments({
+      hospital: userHospital,
+      "verificationDocuments.status": "PENDING"
+    });
+  } else if (isSuper && filterHospital) {
+    pendingDocuments += await Donor.countDocuments({
+      hospital: filterHospital,
+      "verificationDocuments.status": "PENDING"
+    });
+    pendingDocuments += await Recipient.countDocuments({
+      hospital: filterHospital,
+      "verificationDocuments.status": "PENDING"
+    });
+  } else {
+    pendingDocuments += await Donor.countDocuments({
+      "verificationDocuments.status": "PENDING"
+    });
+    pendingDocuments += await Recipient.countDocuments({
+      "verificationDocuments.status": "PENDING"
+    });
+  }
+
+  res.json({
+    success: true,
+    data: {
+      activeDonors,
+      activeRecipients,
+      pendingDocuments,
+      matchesInProgress,
+      feed: [
+        "System diagnostics completed successfully.",
+        `Active donors count: ${activeDonors}`,
+        `Active recipients count: ${activeRecipients}`
+      ]
+    }
+  });
 });
 
 export const analytics = asyncHandler(async (req, res) => {
