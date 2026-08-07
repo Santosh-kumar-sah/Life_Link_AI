@@ -84,8 +84,7 @@ class AuthService {
     const refreshToken = this.generateRefreshToken(user);
 
     // Save refresh token in DB for rotation/revocation
-    user.refreshToken = refreshToken;
-    await user.save({ validateBeforeSave: false });
+    await User.updateOne({ _id: user._id }, { $set: { refreshToken } });
 
     // Exclude password from returned user object
     user.password = undefined;
@@ -108,8 +107,7 @@ class AuthService {
       if (!user || user.refreshToken !== oldRefreshToken) {
         // Token reuse or mismatch detection
         if (user) {
-          user.refreshToken = undefined;
-          await user.save({ validateBeforeSave: false });
+          await User.updateOne({ _id: user._id }, { $unset: { refreshToken: "" } });
         }
         throw new AuthError("Session expired or invalid refresh token", true);
       }
@@ -117,8 +115,7 @@ class AuthService {
       const accessToken = this.generateAccessToken(user);
       const newRefreshToken = this.generateRefreshToken(user);
 
-      user.refreshToken = newRefreshToken;
-      await user.save({ validateBeforeSave: false });
+      await User.updateOne({ _id: user._id }, { $set: { refreshToken: newRefreshToken } });
 
       return { accessToken, refreshToken: newRefreshToken };
     } catch (err) {
