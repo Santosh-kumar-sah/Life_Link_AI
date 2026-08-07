@@ -77,11 +77,15 @@ export default function AdminDashboard() {
 
   const fetchPendingDocs = async () => {
     try {
-      setPendingDocs([
-        { userId: 'u1', userType: 'donor', docType: 'ID', fileUrl: '#', profileId: 'p1' },
-        { userId: 'u2', userType: 'recipient', docType: 'physician_referral', fileUrl: '#', profileId: 'p2' }
-      ]);
-    } catch (e) {}
+      const res = await fetchClient<PendingDoc[]>('/api/v1/admin/pending-documents');
+      if (res && Array.isArray(res)) {
+        setPendingDocs(res);
+      } else {
+        setPendingDocs([]);
+      }
+    } catch (e) {
+      setPendingDocs([]);
+    }
   };
 
   const fetchRecipients = async () => {

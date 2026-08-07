@@ -6,18 +6,23 @@ import Match from "../matches/match.model.js";
 import Notification from "../matches/notification.model.js";
 
 export const verifyDocument = asyncHandler(async (req, res) => {
-  const { userId, docType, status, rejectionReason } = req.body;
+  const { userId, docType, status, action, rejectionReason } = req.body;
+  const targetStatus = status || (action === "VERIFY" ? "VERIFIED" : action === "REJECT" ? "REJECTED" : undefined);
   
+  if (!targetStatus) {
+    throw new Error("Invalid status or action provided.");
+  }
+
   let found = false;
   const donor = await Donor.findOne({ userId });
   if (donor) {
     const docIndex = donor.verificationDocuments.findIndex(d => d.docType === docType && d.status === "PENDING");
     if (docIndex > -1) {
-      donor.verificationDocuments[docIndex].status = status;
+      donor.verificationDocuments[docIndex].status = targetStatus;
       donor.verificationDocuments[docIndex].rejectionReason = rejectionReason;
       
       const hasVerified = donor.verificationDocuments.some(d => d.status === "VERIFIED");
-      if (status === "VERIFIED" && donor.availability && donor.explicitConsent && hasVerified) {
+      if (targetStatus === "VERIFIED" && donor.availability && donor.explicitConsent && hasVerified) {
         donor.status = "active";
       }
       await donor.save();
@@ -30,7 +35,7 @@ export const verifyDocument = asyncHandler(async (req, res) => {
     if (recipient) {
       const docIndex = recipient.verificationDocuments.findIndex(d => d.docType === docType && d.status === "PENDING");
       if (docIndex > -1) {
-        recipient.verificationDocuments[docIndex].status = status;
+        recipient.verificationDocuments[docIndex].status = targetStatus;
         recipient.verificationDocuments[docIndex].rejectionReason = rejectionReason;
         await recipient.save();
         found = true;
@@ -38,7 +43,7 @@ export const verifyDocument = asyncHandler(async (req, res) => {
     }
   }
 
-  if (found && status === "REJECTED") {
+  if (found && targetStatus === "REJECTED") {
     await Notification.create({ userId, title: "Document Rejected", message: `Your ${docType} was rejected. Reason: ${rejectionReason}`, type: "DOC_REJECTED" });
   }
 
@@ -147,4 +152,54 @@ export const proposeMatch = asyncHandler(async (req, res) => {
   if (recipient) await Notification.create({ userId: recipient.userId, title: "New Match Proposed", message: "You have a new match proposed.", type: "MATCH_PROPOSED" });
   
   res.json({ success: true, data: match });
+});
+
+export const getPendingDocuments = asyncHandler(async (req, res) => {
+  const isSuper = req.user.isSuperAdmin;
+  const userHospital = req.user.hospital;
+
+  const donorQuery = { "verificationDocuments.status": "PENDING" };
+  const recipientQuery = { "verificationDocuments.status": "PENDING" };
+
+  if (!isSuper && userHospital) {
+    donorQuery.hospital = userHospital;
+    recipientQuery.hospital = userHospital;
+  }
+
+  const [donors, recipients] = await Promise.all([
+    Donor.find(donorQuery),
+    Recipient.find(recipientQuery)
+  ]);
+
+  const pendingList = [];
+
+  for (const d of donors) {
+    for (const doc of d.verificationDocuments) {
+      if (doc.status === "PENDING") {
+        pendingList.push({
+          userId: d.userId,
+          profileId: d._id,
+          userType: "donor",
+          docType: doc.docType,
+          fileUrl: doc.fileUrl
+        });
+      }
+    }
+  }
+
+  for (const r of recipients) {
+    for (const doc of r.verificationDocuments) {
+      if (doc.status === "PENDING") {
+        pendingList.push({
+          userId: r.userId,
+          profileId: r._id,
+          userType: "recipient",
+          docType: doc.docType,
+          fileUrl: doc.fileUrl
+        });
+      }
+    }
+  }
+
+  res.json({ success: true, data: pendingList });
 });

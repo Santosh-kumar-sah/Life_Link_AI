@@ -1,5 +1,5 @@
 import { Router } from "express";
-import { verifyDocument, updateUrgency, dashboard, analytics, matchingCandidates, proposeMatch } from "./admin.controller.js";
+import { verifyDocument, updateUrgency, dashboard, analytics, matchingCandidates, proposeMatch, getPendingDocuments } from "./admin.controller.js";
 import { authenticate, authorize } from "../../middleware/authenticate.js";
 
 const router = Router();
@@ -11,5 +11,6 @@ router.get("/dashboard", dashboard);
 router.get("/analytics", analytics);
 router.get("/matching-candidates", matchingCandidates);
 router.post("/propose-match", proposeMatch);
+router.get("/pending-documents", getPendingDocuments);
 
 export default router;
