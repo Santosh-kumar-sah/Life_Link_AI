@@ -2,7 +2,7 @@
 
 LifeLink is a production-grade web application platform designed to match organ donors with recipients in real-time. It incorporates Rh-aware blood group compatibility rules, geographic proximity computations using MongoDB geospatial index metrics, and size ratio compatibility checks. 
 
-Real-time notifications are pushed instantly to patient recipients, donor candidates, and system administrators via Socket.io.
+Real-time notifications are pushed instantly to patient recipients, donor candidates, and system administrators via Socket.io
 
 ---
 
