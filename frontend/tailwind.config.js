@@ -7,21 +7,27 @@ export default {
   theme: {
     extend: {
       colors: {
-        brand: {
-          dark: "#0b0f19",
-          card: "#131c2e",
-          accent: "#7c3aed", // violet-600
-          glow: "#3b82f6",   // blue-500
-          success: "#10b981", // emerald-500
-          danger: "#ef4444"   // red-500
-        }
+        paper: "#FBFAF7",
+        "paper-alt": "#F3EFE6",
+        sand: "#E8E2D4",
+        ink: "#12231F",
+        "ink-muted": "#4A5C55",
+        primary: {
+          DEFAULT: "#1F6F5C",
+          dark: "#154C3F",
+        },
+        critical: "#C4453D",
+        signal: "#3C8B6E",
+        border: "#DAD3C2",
       },
       fontFamily: {
-        sans: ["Inter", "sans-serif"],
+        serif: ["Fraunces", "Source Serif 4", "Georgia", "serif"],
+        sans: ["Inter", "General Sans", "sans-serif"],
+        mono: ["IBM Plex Mono", "JetBrains Mono", "monospace"],
       },
       boxShadow: {
-        'glow': '0 0 15px rgba(59, 130, 246, 0.5)',
-        'glow-purple': '0 0 15px rgba(124, 58, 237, 0.5)',
+        'flat': '0 4px 16px rgba(18, 35, 31, 0.06)',
+        'elevated': '0 20px 40px rgba(18, 35, 31, 0.12), inset 0 1px 0 rgba(255, 255, 255, 0.4)',
       }
     },
   },

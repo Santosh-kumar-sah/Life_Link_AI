@@ -1,3 +1,5 @@
+@import url('https://fonts.googleapis.com/css2?family=Fraunces:ital,opsz,wght@0,9..144,100..900;1,9..144,100..900&family=Inter:wght@100..900&display=swap');
+
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
@@ -7,46 +9,54 @@
     scroll-behavior: smooth;
   }
   body {
-    background-color: #060913;
-    color: #f8fafc;
-    font-family: 'Outfit', sans-serif;
+    background-color: #FBFAF7;
+    color: #12231F;
+    font-family: 'Inter', sans-serif;
+  }
+  h1, h2, h3, .font-serif-fraunces {
+    font-family: 'Fraunces', Georgia, serif;
   }
 }
 
 @layer utilities {
-  /* Premium Glassmorphism */
-  .glass-card {
-    background: linear-gradient(135deg, rgba(17, 24, 39, 0.7) 0%, rgba(10, 15, 26, 0.8) 100%);
+  /* Design Tokens as CSS vars for easy inline calculations */
+  :root {
+    --color-bg: #FBFAF7;
+    --color-bg-alt: #F3EFE6;
+    --color-surface: #E8E2D4;
+    --color-ink: #12231F;
+    --color-ink-muted: #4A5C55;
+    --color-primary: #1F6F5C;
+    --color-primary-dark: #154C3F;
+    --color-critical: #C4453D;
+    --color-signal: #3C8B6E;
+    --color-border: #DAD3C2;
+    --color-glass-tint: rgba(251, 250, 247, 0.55);
+  }
+
+  /* Frosted Glass slide slide under light */
+  .glass-slide {
+    background: var(--color-glass-tint);
     backdrop-filter: blur(16px);
     -webkit-backdrop-filter: blur(16px);
-    border: 1px solid rgba(255, 255, 255, 0.05);
-    box-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.37);
+    border: 1px solid rgba(18, 35, 31, 0.08);
+    box-shadow: 0 20px 40px rgba(18, 35, 31, 0.06), inset 0 1px 0 rgba(255, 255, 255, 0.6);
   }
 
-  .glass-card-hover {
-    transition: all 0.4s cubic-bezier(0.16, 1, 0.3, 1);
-  }
-
-  .glass-card-hover:hover {
-    border-color: rgba(99, 102, 241, 0.25);
-    box-shadow: 0 20px 40px -15px rgba(0, 0, 0, 0.5), 0 0 25px rgba(99, 102, 241, 0.15);
-  }
-
-  .glow-border {
-    position: relative;
+  /* Clean minimal card panels */
+  .paper-card {
+    background: #ffffff;
+    border: 1px solid var(--color-border);
+    box-shadow: 0 4px 16px rgba(18, 35, 31, 0.04);
     transition: all 0.3s ease;
   }
 
-  .glow-border:hover {
-    border-color: rgba(59, 130, 246, 0.5);
-    box-shadow: 0 0 15px rgba(59, 130, 246, 0.2);
+  .paper-card:hover {
+    box-shadow: 0 12px 24px rgba(18, 35, 31, 0.08);
+    border-color: var(--color-primary);
   }
 
-  .glow-text {
-    text-shadow: 0 0 15px rgba(99, 102, 241, 0.6);
-  }
-
-  /* 3D Perspective Effects */
+  /* 3D Perspective Containers */
   .perspective-container {
     perspective: 1000px;
     transform-style: preserve-3d;
@@ -56,57 +66,66 @@
     transform-style: preserve-3d;
   }
 
-  .translate-z-10 {
-    transform: translateZ(10px);
+  /* Link hover animation underline */
+  .hover-underline {
+    position: relative;
+  }
+  .hover-underline::after {
+    content: '';
+    position: absolute;
+    width: 100%;
+    transform: scaleX(0);
+    height: 2px;
+    bottom: -2px;
+    left: 0;
+    background-color: var(--color-primary);
+    transform-origin: bottom left;
+    transition: transform 0.25s ease-out;
+  }
+  .hover-underline:hover::after {
+    transform: scaleX(1);
   }
 
-  .translate-z-20 {
-    transform: translateZ(20px);
-  }
-
-  .translate-z-30 {
-    transform: translateZ(30px);
-  }
-
-  /* Heartbeat dynamic visual pulse */
+  /* Heartbeat dynamic visual pulse (teal-themed) */
   .heartbeat-pulse {
     animation: heartbeat 1.5s infinite cubic-bezier(0.215, 0.610, 0.355, 1);
   }
 
   @keyframes heartbeat {
     0% { transform: scale(1); }
-    14% { transform: scale(1.12); }
+    14% { transform: scale(1.08); }
     28% { transform: scale(1); }
-    42% { transform: scale(1.12); }
+    42% { transform: scale(1.08); }
     70% { transform: scale(1); }
   }
 
-  /* Glowing background grids */
-  .grid-pattern {
-    background-size: 40px 40px;
+  /* Warm grids */
+  .warm-grid {
+    background-size: 50px 50px;
     background-image: 
-      linear-gradient(to right, rgba(255, 255, 255, 0.02) 1px, transparent 1px),
-      linear-gradient(to bottom, rgba(255, 255, 255, 0.02) 1px, transparent 1px);
+      linear-gradient(to right, rgba(18, 35, 31, 0.015) 1px, transparent 1px),
+      linear-gradient(to bottom, rgba(18, 35, 31, 0.015) 1px, transparent 1px);
   }
 }
 
-/* Custom Scrollbar for premium feel */
+/* Custom Webkit scrollbar matching warm aesthetics */
 ::-webkit-scrollbar {
   width: 8px;
   height: 8px;
 }
 
 ::-webkit-scrollbar-track {
-  background: #060913;
+  background: #F3EFE6;
 }
 
 ::-webkit-scrollbar-thumb {
-  background: #1e293b;
+  background: #DAD3C2;
   border-radius: 4px;
-  border: 2px solid #060913;
+  border: 2px solid #F3EFE6;
 }
 
 ::-webkit-scrollbar-thumb:hover {
-  background: #334155;
+  background: #1F6F5C;
 }
+
 

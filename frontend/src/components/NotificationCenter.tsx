@@ -2,7 +2,7 @@ import React, { useEffect, useState } from "react";
 import { Bell, Check, X, Inbox } from "lucide-react";
 import { io, Socket } from "socket.io-client";
 import { fetchClient } from "../utils/fetchClient";
-import { Notification, ApiResponse } from "../types/api";
+import { Notification } from "../types/api";
 
 export const NotificationCenter: React.FC = () => {
   const [notifications, setNotifications] = useState<Notification[]>([]);
@@ -25,10 +25,10 @@ export const NotificationCenter: React.FC = () => {
 
   const fetchNotifications = async () => {
     try {
-      const res = await fetchClient<ApiResponse<Notification[]>>("/api/v1/notifications");
-      if (res.success && res.data) {
-        setNotifications(res.data);
-        setUnreadCount(res.data.filter((n) => !n.read).length);
+      const res = await fetchClient<Notification[]>("/api/v1/notifications");
+      if (res && Array.isArray(res)) {
+        setNotifications(res);
+        setUnreadCount(res.filter((n) => !n.read).length);
       } else {
         // Fallback for mocked response
         setNotifications([]);
@@ -40,10 +40,10 @@ export const NotificationCenter: React.FC = () => {
 
   const markAsRead = async (id: string) => {
     try {
-      const res = await fetchClient<ApiResponse<Notification>>(`/api/v1/notifications/${id}/read`, {
+      const res = await fetchClient<Notification>(`/api/v1/notifications/${id}/read`, {
         method: "PATCH",
       });
-      if (res.success) {
+      if (res) {
         setNotifications((prev) =>
           prev.map((n) => (n._id === id ? { ...n, read: true } : n))
         );
@@ -63,7 +63,7 @@ export const NotificationCenter: React.FC = () => {
     <div className="relative">
       <button
         onClick={() => setIsOpen(!isOpen)}
-        className="relative p-2 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-300 transition-colors"
+        className="relative p-2 rounded-lg bg-[#E8E2D4] hover:bg-[#DAD3C2] text-[#12231F] transition-colors"
       >
         <Bell className="w-5 h-5" />
         {unreadCount > 0 && (
@@ -74,33 +74,33 @@ export const NotificationCenter: React.FC = () => {
       </button>
 
       {isOpen && (
-        <div className="absolute right-0 mt-3 w-80 bg-[#0b0f19] border border-slate-700 rounded-2xl shadow-2xl z-50 overflow-hidden animate-in fade-in slide-in-from-top-2">
-          <div className="p-4 border-b border-slate-800 flex justify-between items-center bg-slate-900/50">
-            <h3 className="font-bold text-slate-200">Notifications</h3>
-            <button onClick={() => setIsOpen(false)} className="text-slate-400 hover:text-slate-200">
+        <div className="absolute right-0 mt-3 w-80 bg-white border border-[#DAD3C2] rounded-2xl shadow-2xl z-50 overflow-hidden animate-in fade-in slide-in-from-top-2">
+          <div className="p-4 border-b border-[#DAD3C2] flex justify-between items-center bg-[#F3EFE6]">
+            <h3 className="font-bold text-[#12231F]">Notifications</h3>
+            <button onClick={() => setIsOpen(false)} className="text-[#4A5C55] hover:text-[#12231F]">
               <X className="w-4 h-4" />
             </button>
           </div>
           
           <div className="max-h-96 overflow-y-auto custom-scrollbar">
             {notifications.length === 0 ? (
-              <div className="p-8 text-center text-slate-500 flex flex-col items-center">
+              <div className="p-8 text-center text-[#4A5C55] flex flex-col items-center">
                 <Inbox className="w-8 h-8 mb-2 opacity-50" />
                 <span className="text-sm">No notifications</span>
               </div>
             ) : (
-              <div className="divide-y divide-slate-800">
+              <div className="divide-y divide-[#DAD3C2]">
                 {notifications.map((notif) => (
                   <div
                     key={notif._id}
-                    className={`p-4 transition-colors ${notif.read ? "bg-transparent" : "bg-blue-500/5"} hover:bg-slate-800/50`}
+                    className={`p-4 transition-colors ${notif.read ? "bg-transparent" : "bg-[#F3EFE6]"} hover:bg-[#E8E2D4]`}
                   >
                     <div className="flex gap-3 items-start">
-                      <div className={`w-2 h-2 mt-1.5 rounded-full ${notif.read ? "bg-transparent" : "bg-blue-500"}`} />
+                      <div className={`w-2 h-2 mt-1.5 rounded-full ${notif.read ? "bg-transparent" : "bg-[#1F6F5C]"}`} />
                       <div className="flex-1 space-y-1">
-                        <p className={`text-sm ${notif.read ? "text-slate-300" : "text-white font-semibold"}`}>{notif.title}</p>
-                        <p className="text-xs text-slate-400 line-clamp-2">{notif.message}</p>
-                        <p className="text-[10px] text-slate-500 pt-1">{new Date(notif.createdAt).toLocaleString()}</p>
+                        <p className={`text-sm ${notif.read ? "text-[#4A5C55]" : "text-[#12231F] font-semibold"}`}>{notif.title}</p>
+                        <p className="text-xs text-[#4A5C55] line-clamp-2">{notif.message}</p>
+                        <p className="text-[10px] text-[#4A5C55] pt-1">{new Date(notif.createdAt).toLocaleString()}</p>
                       </div>
                       {!notif.read && (
                         <button

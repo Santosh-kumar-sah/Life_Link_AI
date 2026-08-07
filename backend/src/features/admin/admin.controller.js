@@ -63,7 +63,7 @@ export const dashboard = asyncHandler(async (req, res) => {
   const activeDonors = await Donor.countDocuments({ status: "active", hospital });
   const activeRecipients = await Recipient.countDocuments({ hospital });
   const matchesInProgress = await Match.countDocuments({ status: "PENDING" }); // simplistic
-  res.json({ success: true, data: { activeDonors, activeRecipients, pendingDocs: 0, matchesInProgress, activityFeed: [] } });
+  res.json({ success: true, data: { activeDonors, activeRecipients, pendingDocuments: 0, matchesInProgress, feed: [] } });
 });
 
 export const analytics = asyncHandler(async (req, res) => {

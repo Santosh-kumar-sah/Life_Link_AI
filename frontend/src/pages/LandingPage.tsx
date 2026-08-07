@@ -1,5 +1,8 @@
-import { useState } from "react";
+import { useState, useEffect, useRef } from "react";
 import { Link } from "react-router-dom";
+import { motion, AnimatePresence } from "framer-motion";
+import { gsap } from "gsap";
+import { ScrollTrigger } from "gsap/ScrollTrigger";
 import {
   Heart,
   Activity,
@@ -11,18 +14,109 @@ import {
   Mail,
   Send,
   Shield,
-  FileText,
-  Clock,
   Sparkles
 } from "lucide-react";
-import ParticlesBackground from "../components/ParticlesBackground";
+import MoleculesBackground from "../components/MoleculesBackground";
 import Tilt from "../components/Tilt";
+import BookFlip from "../components/BookFlip";
+
+gsap.registerPlugin(ScrollTrigger);
+
+// Helper component for magnetic CTA pull effect
+const MagneticButton: React.FC<{ children: React.ReactNode; className?: string; to: string }> = ({ children, className = "", to }) => {
+  const buttonRef = useRef<HTMLAnchorElement | null>(null);
+  const [coords, setCoords] = useState({ x: 0, y: 0 });
+  const [shouldDisable, setShouldDisable] = useState(false);
+
+  useEffect(() => {
+    const isTouch = window.matchMedia("(pointer: coarse)").matches;
+    const prefersReduced = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+    setShouldDisable(isTouch || prefersReduced);
+  }, []);
+
+  const handleMouseMove = (e: React.MouseEvent<HTMLAnchorElement>) => {
+    if (shouldDisable) return;
+    const btn = buttonRef.current;
+    if (!btn) return;
+
+    const rect = btn.getBoundingClientRect();
+    const mouseX = e.clientX - rect.left - rect.width / 2;
+    const mouseY = e.clientY - rect.top - rect.height / 2;
+
+    // Cap pull translation at max 12px
+    const maxPull = 12;
+    const factorX = (mouseX / (rect.width / 2)) * maxPull;
+    const factorY = (mouseY / (rect.height / 2)) * maxPull;
+
+    setCoords({ x: factorX, y: factorY });
+  };
+
+  const handleMouseLeave = () => {
+    setCoords({ x: 0, y: 0 });
+  };
+
+  return (
+    <Link
+      ref={buttonRef}
+      to={to}
+      onMouseMove={handleMouseMove}
+      onMouseLeave={handleMouseLeave}
+      style={{
+        transform: `translate(${coords.x.toFixed(1)}px, ${coords.y.toFixed(1)}px) scale(1.02)`,
+        transition: coords.x === 0 ? "transform 0.4s cubic-bezier(0.25, 1, 0.5, 1)" : "transform 0.1s ease-out",
+      }}
+      className={`inline-flex items-center justify-center transition-shadow shadow-md hover:shadow-lg ${className}`}
+    >
+      {children}
+    </Link>
+  );
+};
 
 export default function LandingPage() {
-  const [activeTab, setActiveTab] = useState<"formula" | "blood">("formula");
+  const [scrolled, setScrolled] = useState(false);
   const [openFaq, setOpenFaq] = useState<number | null>(null);
+  const [proximityVal, setProximityVal] = useState(45); // Interactive Matching Science Slider
   const [newsletterEmail, setNewsletterEmail] = useState("");
   const [newsletterSubscribed, setNewsletterSubscribed] = useState(false);
+
+  const pulsePathRef = useRef<SVGPathElement | null>(null);
+  const graphRef = useRef<HTMLDivElement | null>(null);
+
+  // Monitor scroll for nav opacity/frosted glass
+  useEffect(() => {
+    const handleScroll = () => {
+      setScrolled(window.scrollY > 30);
+    };
+    window.addEventListener("scroll", handleScroll);
+    return () => window.removeEventListener("scroll", handleScroll);
+  }, []);
+
+  // GSAP animated heartbeat stroke drawing
+  useEffect(() => {
+    const path = pulsePathRef.current;
+    if (!path) return;
+
+    const prefersReducedMotion = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+    if (prefersReducedMotion) {
+      // Just make line static
+      gsap.set(path, { strokeDasharray: "none", strokeDashoffset: 0 });
+      return;
+    }
+
+    const length = path.getTotalLength();
+    gsap.set(path, { strokeDasharray: length, strokeDashoffset: length });
+
+    gsap.to(path, {
+      strokeDashoffset: 0,
+      ease: "power2.out",
+      scrollTrigger: {
+        trigger: path,
+        start: "top 80%",
+        end: "top 45%",
+        scrub: 1.5,
+      }
+    });
+  }, []);
 
   const toggleFaq = (index: number) => {
     setOpenFaq(openFaq === index ? null : index);
@@ -57,39 +151,42 @@ export default function LandingPage() {
   ];
 
   return (
-    <div className="min-h-screen bg-[#060913] text-slate-100 flex flex-col selection:bg-indigo-500/30 selection:text-indigo-200 overflow-x-hidden relative grid-pattern">
-      {/* Dynamic Floating Particles Background */}
-      <ParticlesBackground />
+    <div className="min-h-screen bg-[#FBFAF7] text-[#12231F] flex flex-col selection:bg-[#1F6F5C]/10 selection:text-[#1F6F5C] overflow-x-hidden relative warm-grid">
+      {/* Ambient Canvas Molecular background (Hero background only) */}
+      <div className="absolute top-0 left-0 right-0 h-[800px] overflow-hidden pointer-events-none z-0">
+        <MoleculesBackground />
+      </div>
 
-      {/* Glow overlays */}
-      <div className="absolute top-0 left-1/4 w-[500px] h-[500px] bg-blue-500/10 rounded-full blur-[120px] pointer-events-none z-0"></div>
-      <div className="absolute top-1/3 right-1/4 w-[500px] h-[500px] bg-indigo-500/10 rounded-full blur-[120px] pointer-events-none z-0"></div>
-
-      {/* Header */}
-      <header className="sticky top-0 z-50 glass-card border-b border-slate-800/80 backdrop-blur-md">
-        <div className="max-w-7xl mx-auto px-6 h-16 flex items-center justify-between">
-          <div className="flex items-center gap-2">
-            <div className="w-8 h-8 rounded-lg bg-red-500/10 flex items-center justify-center border border-red-500/20">
-              <Heart className="w-5 h-5 text-red-500 fill-red-500/20 heartbeat-pulse" />
+      {/* Header (Transparent over hero, glass slider on scroll) */}
+      <header
+        className={`sticky top-0 z-50 transition-all duration-300 ${
+          scrolled ? "glass-slide py-3.5" : "bg-transparent py-5"
+        }`}
+      >
+        <div className="max-w-7xl mx-auto px-6 flex items-center justify-between">
+          <div className="flex items-center gap-2.5">
+            <div className="w-8 h-8 rounded-lg bg-[#1F6F5C]/10 flex items-center justify-center border border-[#1F6F5C]/20">
+              <Heart className="w-5 h-5 text-[#1F6F5C] fill-[#1F6F5C]/10 heartbeat-pulse" />
             </div>
-            <span className="text-xl font-black bg-gradient-to-r from-blue-400 to-indigo-400 bg-clip-text text-transparent tracking-tight">
+            <span className="text-lg font-black tracking-tight text-[#12231F] font-serif-fraunces">
               LifeLink
             </span>
           </div>
 
-          <nav className="hidden md:flex items-center gap-8 text-sm font-medium text-slate-400">
-            <a href="#features" className="hover:text-white transition-colors">Features</a>
-            <a href="#algorithm" className="hover:text-white transition-colors">Matching Science</a>
-            <a href="#faq" className="hover:text-white transition-colors">FAQ</a>
+          <nav className="hidden md:flex items-center gap-8 text-xs font-semibold uppercase tracking-wider text-[#4A5C55]">
+            <a href="#features" className="hover-underline hover:text-[#1F6F5C] transition-colors">Features</a>
+            <a href="#algorithm" className="hover-underline hover:text-[#1F6F5C] transition-colors">Matching Science</a>
+            <a href="#casefile" className="hover-underline hover:text-[#1F6F5C] transition-colors">Case File</a>
+            <a href="#faq" className="hover-underline hover:text-[#1F6F5C] transition-colors">FAQ</a>
           </nav>
 
-          <div className="flex items-center gap-4">
-            <Link to="/login" className="text-sm font-medium text-slate-400 hover:text-white transition-colors">
+          <div className="flex items-center gap-6">
+            <Link to="/login" className="text-xs font-bold uppercase tracking-wider text-[#4A5C55] hover:text-[#1F6F5C] transition-colors">
               Sign In
             </Link>
             <Link
               to="/register"
-              className="inline-flex items-center justify-center px-4.5 py-2.5 text-xs font-bold uppercase tracking-wider text-white bg-gradient-to-r from-indigo-500 to-blue-600 rounded-xl shadow-lg shadow-indigo-500/10 hover:shadow-indigo-500/25 hover:scale-[1.02] active:scale-[0.98] transition-all"
+              className="inline-flex items-center justify-center px-4.5 py-2.5 bg-[#1F6F5C] hover:bg-[#154C3F] text-white text-xs font-bold uppercase tracking-wider rounded-xl transition-all shadow-sm hover:scale-[1.02] active:scale-[0.98]"
             >
               Get Started
             </Link>
@@ -98,106 +195,112 @@ export default function LandingPage() {
       </header>
 
       {/* Hero Section */}
-      <section className="relative max-w-7xl mx-auto px-6 pt-24 pb-16 text-center flex-1 flex flex-col justify-center items-center z-10">
-        <div className="inline-flex items-center gap-2 px-3 py-1 bg-indigo-500/10 border border-indigo-500/20 text-indigo-400 rounded-full text-xs font-semibold uppercase tracking-wider mb-8 animate-fade-in">
-          <Sparkles className="w-3.5 h-3.5 animate-spin" />
-          <span>Real-time Live Match Engine v1.0</span>
-        </div>
+      <section className="relative max-w-7xl mx-auto px-6 pt-24 pb-16 text-center z-10 flex flex-col items-center">
+        <motion.div
+          initial={{ opacity: 0, y: 15 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.6 }}
+          className="inline-flex items-center gap-2 px-3 py-1 bg-[#1F6F5C]/10 border border-[#1F6F5C]/20 text-[#1F6F5C] rounded-full text-[10px] font-bold uppercase tracking-wider mb-8"
+        >
+          <Sparkles className="w-3.5 h-3.5" />
+          <span>Real-time Clinical Registry Engine</span>
+        </motion.div>
 
-        <h1 className="text-4xl sm:text-6xl lg:text-7xl font-black tracking-tight mb-8 max-w-5xl leading-[1.05]">
-          Autonomous Biomedical{" "}
-          <span className="bg-gradient-to-r from-blue-400 via-indigo-400 to-violet-400 bg-clip-text text-transparent glow-text">
-            Organ Matching
-          </span>
-        </h1>
+        <motion.h1
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.8, delay: 0.15 }}
+          className="text-4xl sm:text-6xl lg:text-7xl font-bold tracking-tight mb-8 max-w-5xl text-[#12231F] font-serif-fraunces leading-[1.1]"
+        >
+          Connecting donor willingness with patient waiting list{" "}
+          <span className="text-[#1F6F5C] italic">precision.</span>
+        </motion.h1>
 
-        <p className="text-base sm:text-lg text-slate-400 max-w-2xl mx-auto mb-12 leading-relaxed">
-          LifeLink connects registered donors, waiting recipients, and hospital administrators in real-time. Powering critical decisions with geospatial proximity and clinical matching algorithms.
-        </p>
+        <motion.p
+          initial={{ opacity: 0, y: 15 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.6, delay: 0.3 }}
+          className="text-sm sm:text-base text-[#4A5C55] max-w-2xl mx-auto mb-12 leading-relaxed"
+        >
+          LifeLink links clinical registries, matching patient ABO compatibility and geospatial proximity to secure vital transport corridors in milliseconds.
+        </motion.p>
 
-        <div className="flex flex-col sm:flex-row items-center justify-center gap-4 mb-20 w-full sm:w-auto">
-          <Link
+        <motion.div
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          transition={{ duration: 0.8, delay: 0.45 }}
+          className="flex flex-col sm:flex-row items-center justify-center gap-4 mb-20 w-full sm:w-auto"
+        >
+          {/* Magnetic CTA Buttons */}
+          <MagneticButton
             to="/register"
-            className="w-full sm:w-auto inline-flex items-center justify-center gap-2 px-8 py-4 text-sm font-bold uppercase tracking-wider text-white bg-gradient-to-r from-indigo-500 to-blue-600 rounded-xl shadow-xl shadow-indigo-500/20 hover:shadow-indigo-500/35 hover:scale-[1.03] active:scale-[0.98] transition-all group"
+            className="w-full sm:w-auto px-8 py-3.5 bg-[#1F6F5C] hover:bg-[#154C3F] text-white text-xs font-bold uppercase tracking-wider rounded-xl shadow-[#1F6F5C]/10"
           >
-            Create Profile <ArrowRight className="w-4 h-4 group-hover:translate-x-1 transition-transform" />
-          </Link>
-          <Link
+            Create Your Profile <ArrowRight className="w-4 h-4 ml-2" />
+          </MagneticButton>
+          <MagneticButton
             to="/login"
-            className="w-full sm:w-auto inline-flex items-center justify-center gap-2 px-8 py-4 text-sm font-bold uppercase tracking-wider text-slate-300 hover:text-white bg-slate-900/60 hover:bg-slate-900/90 border border-slate-800 rounded-xl hover:scale-[1.02] transition-all"
+            className="w-full sm:w-auto px-8 py-3.5 bg-[#F3EFE6] hover:bg-[#E8E2D4] border border-[#DAD3C2] text-[#12231F] text-xs font-bold uppercase tracking-wider rounded-xl"
           >
             Access Dashboard
-          </Link>
-        </div>
+          </MagneticButton>
+        </motion.div>
 
-        {/* 3D Stat Cards Section */}
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6 max-w-6xl w-full">
-          {[
-            { title: "98.2%", desc: "Match Score Precision", color: "from-blue-400 to-cyan-400" },
-            { title: "< 1s", desc: "Live Notification Latency", color: "from-purple-400 to-indigo-400" },
-            { title: "100%", desc: "Rh-Factor Blood Compliance", color: "from-emerald-400 to-teal-400" },
-            { title: "24/7", desc: "Active Hospital Watch", color: "from-rose-400 to-pink-400" }
-          ].map((stat, idx) => (
-            <Tilt key={idx} className="w-full">
-              <div className="glass-card p-6 rounded-2xl border border-slate-850 bg-gradient-to-br from-slate-900/50 to-slate-950/50 shadow-xl flex flex-col justify-center items-center text-center h-28 preserve-3d">
-                <div className={`text-3xl font-black bg-gradient-to-r ${stat.color} bg-clip-text text-transparent translate-z-20 mb-1`}>
-                  {stat.title}
-                </div>
-                <div className="text-xxs font-bold text-slate-500 uppercase tracking-wider translate-z-10">
-                  {stat.desc}
-                </div>
-              </div>
-            </Tilt>
-          ))}
+        {/* Signature Pulse Line Draw to Graph resolver */}
+        <div className="w-full max-w-5xl mx-auto relative mt-6 pb-20">
+          <svg
+            viewBox="0 0 1000 120"
+            className="w-full h-auto text-[#1F6F5C]/25"
+            fill="none"
+            stroke="currentColor"
+            strokeWidth="2"
+            strokeLinecap="round"
+          >
+            {/* Heartbeat pulse path */}
+            <path
+              ref={pulsePathRef}
+              d="M0 60 L300 60 L320 60 L330 30 L340 90 L350 60 L360 60 L370 20 L380 100 L390 60 L400 60 L410 45 L420 75 L430 60 L450 60 L1000 60"
+              stroke="#1F6F5C"
+              strokeWidth="2.5"
+            />
+          </svg>
+
+          {/* Node chart overlay */}
+          <div ref={graphRef} className="absolute inset-0 flex justify-between items-center px-20">
+            <div className="paper-card p-3 rounded-xl flex items-center gap-2 border border-[#DAD3C2]">
+              <div className="w-2.5 h-2.5 rounded-full bg-[#1F6F5C] animate-ping" />
+              <span className="text-[10px] font-mono uppercase text-[#4A5C55]">Donor Register</span>
+            </div>
+            <div className="paper-card p-3 rounded-xl flex items-center gap-2 border border-[#DAD3C2]">
+              <Sparkles className="w-4 h-4 text-amber-500 animate-spin" />
+              <span className="text-[10px] font-mono uppercase text-[#4A5C55]">Match Engine</span>
+            </div>
+            <div className="paper-card p-3 rounded-xl flex items-center gap-2 border border-[#DAD3C2]">
+              <MapPin className="w-4 h-4 text-[#C4453D]" />
+              <span className="text-[10px] font-mono uppercase text-[#4A5C55]">Hospital Hub</span>
+            </div>
+          </div>
         </div>
       </section>
 
-      {/* Core Technology Features Section */}
-      <section id="features" className="bg-slate-950/40 border-y border-slate-900/60 py-24 relative z-10">
+      {/* Stats strip - 3D Tilt blocks */}
+      <section className="bg-[#F3EFE6] border-y border-[#DAD3C2]/80 py-12 relative z-10">
         <div className="max-w-7xl mx-auto px-6">
-          <div className="text-center mb-20">
-            <h2 className="text-3xl font-extrabold tracking-tight mb-4">
-              Real-Time Match Engine Features
-            </h2>
-            <p className="text-slate-400 max-w-2xl mx-auto text-sm">
-              Our automated matching pipeline simplifies complex healthcare coordination steps down to milliseconds.
-            </p>
-          </div>
-
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
             {[
-              {
-                icon: <Heart className="w-6 h-6" />,
-                title: "Rh-Aware Blood Type Matrix",
-                desc: "Full 8-group donor-recipient compatibility logic, preventing mismatched transplants.",
-                color: "text-red-400 bg-red-500/10 border-red-500/20"
-              },
-              {
-                icon: <Activity className="w-6 h-6" />,
-                title: "Urgency Rating Scaling",
-                desc: "Matches are ranked dynamically by medical urgency classifications and waiting list duration.",
-                color: "text-violet-400 bg-violet-500/10 border-violet-500/20"
-              },
-              {
-                icon: <MapPin className="w-6 h-6" />,
-                title: "Geospatial Proximity",
-                desc: "MongoDB 2dsphere indexes calculate geographic distances to optimize critical transport windows.",
-                color: "text-cyan-400 bg-cyan-500/10 border-cyan-500/20"
-              },
-              {
-                icon: <Award className="w-6 h-6" />,
-                title: "Size Compatibility Check",
-                desc: "Calculates donor-to-recipient weight ratios to ensure anatomical size compliance.",
-                color: "text-pink-400 bg-pink-500/10 border-pink-500/20"
-              }
-            ].map((feature, idx) => (
-              <Tilt key={idx} className="h-full">
-                <div className="glass-card glass-card-hover p-8 rounded-2xl border border-slate-900/60 flex flex-col h-full text-left preserve-3d">
-                  <div className={`w-12 h-12 rounded-xl flex items-center justify-center mb-6 translate-z-20 border ${feature.color}`}>
-                    {feature.icon}
+              { title: "98.2%", desc: "Scoring Match Accuracy" },
+              { title: "< 2 Mins", desc: "Live Match Calculation" },
+              { title: "100%", desc: "ABO Compliant Validation" },
+              { title: "24/7", desc: "Active Coordinator Oversight" }
+            ].map((stat, idx) => (
+              <Tilt key={idx} className="w-full">
+                <div className="paper-card p-6 rounded-2xl flex flex-col justify-center items-center text-center h-28 preserve-3d">
+                  <div className="text-3xl font-bold font-mono text-[#1F6F5C] mb-1">
+                    {stat.title}
                   </div>
-                  <h3 className="text-base font-bold text-slate-200 mb-3 translate-z-10">{feature.title}</h3>
-                  <p className="text-slate-400 text-xs leading-relaxed translate-z-10">{feature.desc}</p>
+                  <div className="text-[10px] font-mono text-[#4A5C55] uppercase tracking-wider">
+                    {stat.desc}
+                  </div>
                 </div>
               </Tilt>
             ))}
@@ -205,151 +308,194 @@ export default function LandingPage() {
         </div>
       </section>
 
-      {/* Interactive Science & Algorithm Section */}
-      <section id="algorithm" className="py-24 max-w-7xl mx-auto px-6 w-full z-10">
-        <div className="text-center mb-16">
-          <h2 className="text-3xl font-extrabold tracking-tight mb-4">
-            The Science Behind LifeLink Matching
-          </h2>
-          <p className="text-slate-400 max-w-2xl mx-auto text-sm">
-            Explore how matching scores are constructed and validated using biomedical criteria.
-          </p>
-        </div>
-
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-8 items-start">
-          {/* Navigation tabs */}
-          <div className="lg:col-span-1 space-y-3">
-            <button
-              onClick={() => setActiveTab("formula")}
-              className={`w-full text-left p-4.5 rounded-2xl border transition-all ${
-                activeTab === "formula"
-                  ? "bg-indigo-500/10 border-indigo-500/30 text-indigo-400 shadow-md"
-                  : "bg-slate-900/40 border-slate-850 text-slate-400 hover:bg-slate-900/70"
-              }`}
-            >
-              <div className="font-bold text-sm mb-1 flex items-center gap-2">
-                <Sparkles className="w-4 h-4" />
-                Scoring Formula
-              </div>
-              <p className="text-slate-500 text-xs">Mathematical breakdown of match scores.</p>
-            </button>
-
-            <button
-              onClick={() => setActiveTab("blood")}
-              className={`w-full text-left p-4.5 rounded-2xl border transition-all ${
-                activeTab === "blood"
-                  ? "bg-indigo-500/10 border-indigo-500/30 text-indigo-400 shadow-md"
-                  : "bg-slate-900/40 border-slate-850 text-slate-400 hover:bg-slate-900/70"
-              }`}
-            >
-              <div className="font-bold text-sm mb-1 flex items-center gap-2">
-                <Heart className="w-4 h-4" />
-                Blood Compatibility Matrix
-              </div>
-              <p className="text-slate-500 text-xs">8-group Rh-factor biological compatibilities.</p>
-            </button>
+      {/* Features grid with staggered entrances */}
+      <section id="features" className="py-24 relative z-10">
+        <div className="max-w-7xl mx-auto px-6">
+          <div className="text-center mb-20">
+            <h2 className="text-3xl sm:text-4xl font-bold text-[#12231F] font-serif-fraunces mb-4">
+              Real-time matching coordination
+            </h2>
+            <p className="text-sm text-[#4A5C55] max-w-xl mx-auto leading-relaxed">
+              Medical coordination systems engineered to automate validation checking and coordinate critical matching metrics.
+            </p>
           </div>
 
-          {/* Tab Content Display */}
-          <div className="lg:col-span-2">
-            {activeTab === "formula" ? (
-              <div className="glass-card p-6 sm:p-8 rounded-3xl border border-slate-800 space-y-6">
-                <h3 className="text-lg font-bold text-slate-200">Compatibility Scoring Matrix</h3>
-                <div className="bg-slate-950/60 p-4.5 rounded-xl border border-slate-850 text-center">
-                  <div className="text-sm font-mono text-indigo-400 font-semibold tracking-wide">
-                    Score = 0.2 × Blood + 0.4 × Urgency + 0.2 × Proximity + 0.2 × Size
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+            {[
+              {
+                icon: <Heart className="w-5 h-5" />,
+                title: "ABO-Rh Compatibilities",
+                desc: "Biological compliance checkers matching patient O-Rh compatibility with donor listings.",
+                accent: "border-[#1F6F5C]/20"
+              },
+              {
+                icon: <Activity className="w-5 h-5" />,
+                title: "Urgency Multipliers",
+                desc: "Calculates list priority based on severity indicators and length of registration date.",
+                accent: "border-amber-500/20"
+              },
+              {
+                icon: <MapPin className="w-5 h-5" />,
+                title: "Transport Proximity",
+                desc: "MongoDB 2dsphere indexes computing transport distances inside local hospital scopes.",
+                accent: "border-blue-500/20"
+              },
+              {
+                icon: <Award className="w-5 h-5" />,
+                title: "Anatomical Weight Check",
+                desc: "Calculates donor weight mass matching indexes to confirm organ size compliance.",
+                accent: "border-pink-500/20"
+              }
+            ].map((feat, idx) => (
+              <Tilt key={idx} className="h-full">
+                <div className={`paper-card p-8 rounded-2xl border ${feat.accent} flex flex-col justify-between h-full preserve-3d`}>
+                  <div>
+                    <div className="w-10 h-10 rounded-xl bg-[#F3EFE6] border border-[#DAD3C2] flex items-center justify-center mb-6 text-[#1F6F5C]">
+                      {feat.icon}
+                    </div>
+                    <h3 className="text-base font-bold text-[#12231F] font-serif-fraunces mb-3">{feat.title}</h3>
+                    <p className="text-xs text-[#4A5C55] leading-relaxed">{feat.desc}</p>
                   </div>
                 </div>
-
-                <div className="space-y-4 text-xs text-slate-400">
-                  <div className="flex items-start gap-3">
-                    <span className="w-1.5 h-1.5 rounded-full bg-blue-500 mt-1.5 flex-shrink-0"></span>
-                    <div>
-                      <strong className="text-slate-200">ABO Compatibility (20%):</strong> Identical blood group matching yields 100 points. Compatible but non-identical matching types yield 50 points.
-                    </div>
-                  </div>
-                  <div className="flex items-start gap-3">
-                    <span className="w-1.5 h-1.5 rounded-full bg-violet-500 mt-1.5 flex-shrink-0"></span>
-                    <div>
-                      <strong className="text-slate-200">Urgency (40%):</strong> Patient clinical urgency levels (CRITICAL=100, HIGH=75, MEDIUM=50, LOW=25) with a waiting list bonus modifier (+1 point per 30 days registered, capped at 10).
-                    </div>
-                  </div>
-                  <div className="flex items-start gap-3">
-                    <span className="w-1.5 h-1.5 rounded-full bg-cyan-500 mt-1.5 flex-shrink-0"></span>
-                    <div>
-                      <strong className="text-slate-200">Proximity (20%):</strong> Scaled distance between donor and recipient. Proximity score drops linearly from 100 points at 0 km down to 0 points at 2000 km.
-                    </div>
-                  </div>
-                  <div className="flex items-start gap-3">
-                    <span className="w-1.5 h-1.5 rounded-full bg-pink-500 mt-1.5 flex-shrink-0"></span>
-                    <div>
-                      <strong className="text-slate-200">Size compatibility (20%):</strong> The body weight ratio (Donor weight / Patient weight). Ratios inside the `[0.8, 1.2]` window score 100 points. A linear drop-off applies outside this window.
-                    </div>
-                  </div>
-                </div>
-              </div>
-            ) : (
-              <div className="glass-card p-6 sm:p-8 rounded-3xl border border-slate-800 space-y-4">
-                <h3 className="text-lg font-bold text-slate-200">ABO-Rh Compatibility Logic</h3>
-                <p className="text-slate-400 text-xs leading-relaxed">
-                  Rh factor aware compatibility prevents incompatible organ allocations. Our database maps donor blood groups to compatible recipients prior to scoring.
-                </p>
-                <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 pt-2">
-                  {[
-                    { donor: "O-", compat: "Universal Donor (All)" },
-                    { donor: "O+", compat: "O+, A+, B+, AB+" },
-                    { donor: "A-", compat: "A-, A+, AB-, AB+" },
-                    { donor: "A+", compat: "A+, AB+" },
-                    { donor: "B-", compat: "B-, B+, AB-, AB+" },
-                    { donor: "B+", compat: "B+, AB+" },
-                    { donor: "AB-", compat: "AB-, AB+" },
-                    { donor: "AB+", compat: "AB+ Only (Universal Recipient)" }
-                  ].map((cell, idx) => (
-                    <div key={idx} className="bg-slate-900/50 border border-slate-850 p-3 rounded-xl text-center">
-                      <div className="text-sm font-black text-slate-200 mb-1">{cell.donor}</div>
-                      <div className="text-[10px] text-slate-500 font-medium leading-tight">{cell.compat}</div>
-                    </div>
-                  ))}
-                </div>
-              </div>
-            )}
+              </Tilt>
+            ))}
           </div>
         </div>
       </section>
 
-      {/* FAQ Section */}
-      <section id="faq" className="py-24 bg-slate-950/30 border-t border-slate-900/60 z-10 relative">
-        <div className="max-w-4xl mx-auto px-6">
+      {/* Matching Science Section (ABO grid + Interactive slider inside Glass panel) */}
+      <section id="algorithm" className="py-24 bg-[#F3EFE6] border-y border-[#DAD3C2]/65 relative z-10">
+        <div className="max-w-7xl mx-auto px-6">
           <div className="text-center mb-16">
-            <h2 className="text-3xl font-extrabold tracking-tight mb-4">
-              Frequently Asked Questions
+            <h2 className="text-3xl sm:text-4xl font-bold text-[#12231F] font-serif-fraunces mb-4">
+              Match Engine compatibility science
             </h2>
-            <p className="text-slate-400 max-w-lg mx-auto text-sm">
-              Answers to technical questions regarding matching logic and platform features.
+            <p className="text-sm text-[#4A5C55] max-w-xl mx-auto">
+              Our clinical matrix combines geospatial thresholds and biological compatibility indices to calculate transplant suitability.
             </p>
           </div>
 
-          <div className="space-y-4">
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-10 items-center">
+            {/* Left Column: Frosted Glass Panel ABO grid */}
+            <div className="glass-slide p-6 sm:p-8 rounded-3xl space-y-6">
+              <div>
+                <span className="text-[10px] font-mono uppercase tracking-wider text-[#1F6F5C] font-bold">Slide Ref: ABO-Rh</span>
+                <h3 className="text-lg font-bold font-serif-fraunces text-[#12231F] mt-1">Rh-Aware Compatibility Matrices</h3>
+              </div>
+
+              <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 pt-2 text-center">
+                {[
+                  { d: "O-", r: "Universal (All)" },
+                  { d: "O+", r: "Rh+ Only" },
+                  { d: "A-", r: "A / AB" },
+                  { d: "A+", r: "A+ / AB+" },
+                  { d: "B-", r: "B / AB" },
+                  { d: "B+", r: "B+ / AB+" },
+                  { d: "AB-", r: "AB- / AB+" },
+                  { d: "AB+", r: "AB+ Only" }
+                ].map((cell, idx) => (
+                  <div key={idx} className="bg-white/80 border border-[#DAD3C2]/50 p-3 rounded-xl">
+                    <div className="text-sm font-bold font-mono text-[#1F6F5C]">{cell.d}</div>
+                    <div className="text-[10px] text-[#4A5C55] font-semibold mt-1 leading-tight">{cell.r}</div>
+                  </div>
+                ))}
+              </div>
+            </div>
+
+            {/* Right Column: Interactive Proximity Matrix */}
+            <div className="paper-card p-6 sm:p-8 rounded-3xl space-y-6 bg-white">
+              <div>
+                <h3 className="text-lg font-bold font-serif-fraunces text-[#12231F]">Geospatial Transport Window</h3>
+                <p className="text-xs text-[#4A5C55] leading-relaxed mt-2">
+                  Proximity transport duration scales match scores. Match window decreases linearly over travel distances.
+                </p>
+              </div>
+
+              {/* Proximity Slider simulation */}
+              <div className="space-y-4 pt-4">
+                <div className="flex justify-between items-center text-xs font-mono text-[#4A5C55]">
+                  <span>Transport Proximity</span>
+                  <span className="text-[#1F6F5C] font-bold">{proximityVal} km</span>
+                </div>
+                <input
+                  type="range"
+                  min="5"
+                  max="500"
+                  value={proximityVal}
+                  onChange={(e) => setProximityVal(parseInt(e.target.value))}
+                  className="w-full h-1.5 bg-[#F3EFE6] rounded-lg appearance-none cursor-pointer accent-[#1F6F5C]"
+                />
+                <div className="bg-[#F3EFE6] p-4 rounded-xl flex items-center justify-between text-xs">
+                  <span className="text-[#4A5C55] font-medium">Estimated Transit time:</span>
+                  <span className="font-mono font-bold text-[#12231F]">
+                    {Math.round((proximityVal * 60) / 80)} minutes
+                  </span>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      {/* Case File Sequential Book-Flip Section */}
+      <section id="casefile" className="py-24 relative z-10">
+        <div className="max-w-7xl mx-auto px-6">
+          <div className="text-center mb-16">
+            <h2 className="text-3xl sm:text-4xl font-bold text-[#12231F] font-serif-fraunces mb-4">
+              How a match completes
+            </h2>
+            <p className="text-sm text-[#4A5C55] max-w-xl mx-auto">
+              Follow the chronological transplant logistics pipeline. Select the tab pages below to flip through the case folder stages.
+            </p>
+          </div>
+
+          <BookFlip />
+        </div>
+      </section>
+
+      {/* Accordion FAQ Section */}
+      <section id="faq" className="py-24 bg-[#F3EFE6] border-t border-[#DAD3C2]/70 relative z-10">
+        <div className="max-w-4xl mx-auto px-6">
+          <div className="text-center mb-16">
+            <h2 className="text-3xl font-bold text-[#12231F] font-serif-fraunces mb-4">
+              Frequently Answered Inquiries
+            </h2>
+            <p className="text-sm text-[#4A5C55] max-w-sm mx-auto">
+              Technical documentation covering coordinates and compliance validation.
+            </p>
+          </div>
+
+          <div className="space-y-3">
             {faqs.map((faq, idx) => {
               const isOpen = openFaq === idx;
               return (
                 <div
                   key={idx}
-                  className="glass-card rounded-2xl border border-slate-850 overflow-hidden transition-all duration-300"
+                  className="bg-white border border-[#DAD3C2] rounded-2xl overflow-hidden transition-all duration-300"
                 >
                   <button
                     onClick={() => toggleFaq(idx)}
-                    className="w-full px-6 py-5 flex items-center justify-between text-left hover:bg-slate-900/20 transition-colors"
+                    className="w-full px-6 py-4 flex items-center justify-between text-left hover:bg-[#F3EFE6]/35 transition-colors cursor-pointer"
                   >
-                    <span className="font-bold text-sm text-slate-200">{faq.q}</span>
-                    {isOpen ? <ChevronUp className="w-4 h-4 text-indigo-400" /> : <ChevronDown className="w-4 h-4 text-slate-400" />}
+                    <span className="font-bold text-sm text-[#12231F]">{faq.q}</span>
+                    {isOpen ? <ChevronUp className="w-4 h-4 text-[#1F6F5C]" /> : <ChevronDown className="w-4 h-4 text-[#4A5C55]" />}
                   </button>
 
-                  {isOpen && (
-                    <div className="px-6 pb-5 text-slate-400 text-xs leading-relaxed border-t border-slate-850/50 pt-4 animate-in slide-in-from-top-2 duration-200">
-                      {faq.a}
-                    </div>
-                  )}
+                  <AnimatePresence initial={false}>
+                    {isOpen && (
+                      <motion.div
+                        initial={{ height: 0, opacity: 0 }}
+                        animate={{ height: "auto", opacity: 1 }}
+                        exit={{ height: 0, opacity: 0 }}
+                        transition={{ duration: 0.25 }}
+                        className="overflow-hidden"
+                      >
+                        <div className="px-6 pb-5 text-[#4A5C55] text-xs leading-relaxed border-t border-[#DAD3C2]/40 pt-4">
+                          {faq.a}
+                        </div>
+                      </motion.div>
+                    )}
+                  </AnimatePresence>
                 </div>
               );
             })}
@@ -357,29 +503,29 @@ export default function LandingPage() {
         </div>
       </section>
 
-      {/* CTA Newsletter Sign-Up Section */}
+      {/* Newsletter Signup Form Panel */}
       <section className="relative max-w-7xl mx-auto px-6 py-20 w-full text-center z-10">
-        <div className="glass-card glow-border p-8 sm:p-12 rounded-3xl border border-slate-800 bg-gradient-to-br from-slate-900/40 via-slate-950/40 to-slate-900/40 max-w-4xl mx-auto space-y-6">
-          <h2 className="text-2xl sm:text-3xl font-black text-white tracking-tight">Stay updated with matches</h2>
-          <p className="text-slate-400 text-sm max-w-md mx-auto">
+        <div className="paper-card p-8 sm:p-12 rounded-3xl bg-white max-w-3xl mx-auto space-y-6">
+          <h2 className="text-2xl sm:text-3xl font-bold text-[#12231F] font-serif-fraunces">Receive Registry Bulletins</h2>
+          <p className="text-xs text-[#4A5C55] max-w-md mx-auto leading-relaxed">
             Subscribe to our newsletters to receive platform updates and technical announcements.
           </p>
 
           <form onSubmit={handleNewsletterSubmit} className="flex flex-col sm:flex-row items-center gap-3 max-w-md mx-auto pt-2">
             <div className="relative w-full">
-              <Mail className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-500" />
+              <Mail className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-[#4A5C55]" />
               <input
                 type="email"
                 required
                 value={newsletterEmail}
                 onChange={(e) => setNewsletterEmail(e.target.value)}
                 placeholder="Enter your email address"
-                className="w-full bg-slate-950/70 border border-slate-800 rounded-xl pl-10 pr-4 py-3 text-sm text-slate-200 focus:outline-none focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 placeholder-slate-600 transition-colors"
+                className="w-full bg-[#FBFAF7] border border-[#DAD3C2] rounded-xl pl-10 pr-4 py-3 text-xs text-[#12231F] focus:outline-none focus:border-[#1F6F5C] focus:ring-1 focus:ring-[#1F6F5C] transition-colors"
               />
             </div>
             <button
               type="submit"
-              className="w-full sm:w-auto inline-flex items-center justify-center gap-2 px-6 py-3 bg-gradient-to-r from-indigo-500 to-blue-600 hover:from-indigo-400 hover:to-blue-500 text-white rounded-xl text-sm font-bold transition-all hover:scale-[1.02] active:scale-[0.98] flex-shrink-0"
+              className="w-full sm:w-auto inline-flex items-center justify-center gap-2 px-6 py-3 bg-[#1F6F5C] hover:bg-[#154C3F] text-white rounded-xl text-xs font-bold uppercase tracking-wider transition-colors cursor-pointer"
             >
               <span>Subscribe</span>
               <Send className="w-3.5 h-3.5" />
@@ -387,99 +533,78 @@ export default function LandingPage() {
           </form>
 
           {newsletterSubscribed && (
-            <p className="text-emerald-400 text-xs animate-pulse">
+            <p className="text-[#3C8B6E] text-xs font-bold animate-pulse">
               Subscription request received! Thank you for staying updated.
             </p>
           )}
         </div>
       </section>
 
-      {/* Better Proper Footer Section */}
-      <footer className="border-t border-slate-850 bg-[#04060d] py-16 relative z-10">
+      {/* Footer */}
+      <footer className="border-t border-[#DAD3C2] bg-[#F3EFE6] py-16 relative z-10">
         <div className="max-w-7xl mx-auto px-6 grid grid-cols-1 md:grid-cols-4 gap-10">
-          
-          {/* Col 1: Platform Info */}
           <div className="space-y-4">
             <div className="flex items-center gap-2">
-              <div className="w-7 h-7 rounded-lg bg-red-500/10 flex items-center justify-center border border-red-500/20">
-                <Heart className="w-4 h-4 text-red-500 fill-red-500/10 heartbeat-pulse" />
+              <div className="w-7 h-7 rounded-lg bg-[#1F6F5C]/10 flex items-center justify-center border border-[#1F6F5C]/20">
+                <Heart className="w-4 h-4 text-[#1F6F5C] fill-[#1F6F5C]/10 heartbeat-pulse" />
               </div>
-              <span className="font-extrabold text-slate-200">LifeLink Registry</span>
+              <span className="font-bold text-[#12231F] font-serif-fraunces">LifeLink Registry</span>
             </div>
-            <p className="text-slate-500 text-xs leading-relaxed">
-              Real-time organ transplant matching platform matching donors with patients across clinical variables. Powered by MongoDB Geospatial aggregation engines.
+            <p className="text-[#4A5C55] text-xs leading-relaxed">
+              Clinical registry matching engine matching coordinates and compatibility scoring algorithms in real time.
             </p>
-            <div className="text-xs text-slate-400 pt-2 flex items-center gap-2">
-              <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse"></span>
+            <div className="text-[10px] text-[#3C8B6E] font-bold flex items-center gap-2">
+              <span className="w-1.5 h-1.5 rounded-full bg-[#3C8B6E] animate-pulse"></span>
               <span>Health System Registry Online</span>
             </div>
           </div>
 
-          {/* Col 2: Platform Links */}
           <div className="space-y-3">
-            <h4 className="text-xs font-bold uppercase tracking-wider text-slate-400">Portal Gateways</h4>
-            <ul className="space-y-2 text-xs text-slate-500">
-              <li><Link to="/login" className="hover:text-slate-300 transition-colors">Donor Portal</Link></li>
-              <li><Link to="/login" className="hover:text-slate-300 transition-colors">Recipient Waiting List</Link></li>
-              <li><Link to="/login" className="hover:text-slate-300 transition-colors">Hospital Operations</Link></li>
-              <li><Link to="/register" className="hover:text-slate-300 transition-colors">Register Profile</Link></li>
+            <h4 className="text-[10px] font-bold uppercase tracking-wider text-[#4A5C55]">Portal Gateways</h4>
+            <ul className="space-y-2 text-xs text-[#4A5C55]">
+              <li><Link to="/login" className="hover:text-[#1F6F5C] transition-colors">Donor Portal</Link></li>
+              <li><Link to="/login" className="hover:text-[#1F6F5C] transition-colors">Recipient Waiting List</Link></li>
+              <li><Link to="/login" className="hover:text-[#1F6F5C] transition-colors">Hospital Operations</Link></li>
+              <li><Link to="/register" className="hover:text-[#1F6F5C] transition-colors">Register Profile</Link></li>
             </ul>
           </div>
 
-          {/* Col 3: Science & Documentation */}
           <div className="space-y-3">
-            <h4 className="text-xs font-bold uppercase tracking-wider text-slate-400">Medical Science</h4>
-            <ul className="space-y-2 text-xs text-slate-500">
-              <li>
-                <a href="#algorithm" className="hover:text-slate-300 transition-colors flex items-center gap-1.5">
-                  <Heart className="w-3.5 h-3.5 text-rose-500/60" /> Blood Type Matrix
-                </a>
-              </li>
-              <li>
-                <a href="#algorithm" className="hover:text-slate-300 transition-colors flex items-center gap-1.5">
-                  <Activity className="w-3.5 h-3.5 text-violet-500/60" /> Urgency Point Scales
-                </a>
-              </li>
-              <li>
-                <a href="file:///d:/LifeLink/API.md" target="_blank" rel="noopener noreferrer" className="hover:text-slate-300 transition-colors flex items-center gap-1.5">
-                  <FileText className="w-3.5 h-3.5 text-blue-550/60" /> Developer API Specs
-                </a>
-              </li>
-              <li>
-                <a href="#faq" className="hover:text-slate-300 transition-colors flex items-center gap-1.5">
-                  <Clock className="w-3.5 h-3.5 text-amber-500/60" /> FAQ Manual
-                </a>
-              </li>
+            <h4 className="text-[10px] font-bold uppercase tracking-wider text-[#4A5C55]">Medical Science</h4>
+            <ul className="space-y-2 text-xs text-[#4A5C55]">
+              <li><a href="#algorithm" className="hover:text-[#1F6F5C] transition-colors">ABO Compatibility</a></li>
+              <li><a href="#algorithm" className="hover:text-[#1F6F5C] transition-colors">Urgency Criteria</a></li>
+              <li><a href="#casefile" className="hover:text-[#1F6F5C] transition-colors">Sequence Folder</a></li>
+              <li><a href="#faq" className="hover:text-[#1F6F5C] transition-colors">FAQ Manual</a></li>
             </ul>
           </div>
 
-          {/* Col 4: Operations & Support */}
           <div className="space-y-3">
-            <h4 className="text-xs font-bold uppercase tracking-wider text-slate-400">Support Operations</h4>
-            <ul className="space-y-2 text-xs text-slate-500">
+            <h4 className="text-[10px] font-bold uppercase tracking-wider text-[#4A5C55]">Registry Support</h4>
+            <ul className="space-y-2 text-xs text-[#4A5C55]">
               <li className="flex items-center gap-2">
-                <Mail className="w-4 h-4 text-slate-600" />
+                <Mail className="w-4 h-4 text-[#4A5C55]/60" />
                 <span>support@lifelink.org</span>
               </li>
               <li className="flex items-center gap-2">
-                <Shield className="w-4 h-4 text-slate-600" />
-                <span>Hospital Admin Portal</span>
+                <Shield className="w-4 h-4 text-[#4A5C55]/60" />
+                <span>Hospital Admin Gate</span>
               </li>
-              <li className="text-[10px] text-slate-600 leading-relaxed pt-2">
+              <li className="text-[10px] text-[#4A5C55]/70 leading-relaxed pt-2">
                 LifeLink is an organ matching registry MVP. Do not submit actual personal identifying information (PII).
               </li>
             </ul>
           </div>
         </div>
 
-        <div className="max-w-7xl mx-auto px-6 mt-12 pt-8 border-t border-slate-900/60 flex flex-col sm:flex-row items-center justify-between gap-4 text-xxs text-slate-600">
+        <div className="max-w-7xl mx-auto px-6 mt-12 pt-8 border-t border-[#DAD3C2]/50 flex flex-col sm:flex-row items-center justify-between gap-4 text-[10px] font-mono text-[#4A5C55]">
           <div>
             &copy; {new Date().getFullYear()} LifeLink Platform. Built for real-time healthcare matching.
           </div>
           <div className="flex gap-4">
-            <span className="hover:text-slate-400 cursor-pointer transition-colors">Privacy Policy</span>
-            <span className="hover:text-slate-400 cursor-pointer transition-colors">Terms of Service</span>
-            <span className="hover:text-slate-400 cursor-pointer transition-colors">Transplant Guidelines</span>
+            <span className="hover:text-[#1F6F5C] cursor-pointer transition-colors">Privacy Policy</span>
+            <span className="hover:text-[#1F6F5C] cursor-pointer transition-colors">Terms of Service</span>
+            <span className="hover:text-[#1F6F5C] cursor-pointer transition-colors">Transplant Guidelines</span>
           </div>
         </div>
       </footer>
