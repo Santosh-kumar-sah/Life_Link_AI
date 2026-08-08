@@ -5,12 +5,6 @@ import User from "../../src/features/auth/user.model.js";
 import Donor from "../../src/features/donor/donor.model.js";
 import Recipient from "../../src/features/recipient/recipient.model.js";
 import Match from "../../src/features/matches/match.model.js";
-
-// Set environment to test before db connection logic runs
-process.env.NODE_ENV = "test";
-process.env.MONGODB_URI = "mongodb+srv://sureshsirf886_db_user:Santosh123@cluster0.hnqkjkc.mongodb.net/lifelink_test?appName=Cluster0";
-
-// Import DB connection
 import connectDB from "../../src/config/db.js";
 
 describe("Match API Integration Tests", () => {

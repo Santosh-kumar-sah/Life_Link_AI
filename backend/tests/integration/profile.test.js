@@ -4,18 +4,10 @@ import app from "../../src/app.js";
 import User from "../../src/features/auth/user.model.js";
 import Donor from "../../src/features/donor/donor.model.js";
 import Recipient from "../../src/features/recipient/recipient.model.js";
-
-// Set environment to test before db connection logic runs
-process.env.NODE_ENV = "test";
-process.env.MONGODB_URI = "mongodb://127.0.0.1:27017/lifelink-test"; // Checked dynamically in tests if Atlas is needed
-
-// Import config and DB connection
 import connectDB from "../../src/config/db.js";
 
 describe("Donor & Recipient Profile CRUD Integration Tests", () => {
   beforeAll(async () => {
-    // Force testing on the Atlas connection string provided by the user
-    process.env.MONGODB_URI = "mongodb+srv://sureshsirf886_db_user:Santosh123@cluster0.hnqkjkc.mongodb.net/lifelink_test?appName=Cluster0";
     await connectDB();
   });
 

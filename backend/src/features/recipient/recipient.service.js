@@ -56,6 +56,11 @@ class RecipientService {
     const matchService = (await import("../matches/match.service.js")).default;
     await matchService.generateMatchesForRecipient(profile._id);
 
+    try {
+      const { getIO } = await import("../../socket/index.js");
+      getIO().to("admin").emit("stats:update");
+    } catch (err) {}
+
     return profile;
   }
 

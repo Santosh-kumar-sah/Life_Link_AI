@@ -1,7 +1,8 @@
 import { useEffect, useState } from 'react';
 import { fetchClient } from '../utils/fetchClient';
-import { RecipientProfile } from '../types/api';
+import { RecipientProfile, DonorProfile } from '../types/api';
 import { useAuth } from '../context/AuthContext';
+import { io, Socket } from 'socket.io-client';
 import {
   Shield, Users, Activity, FileText, CheckCircle, XCircle, Search,
   Heart, AlertTriangle, Sliders
@@ -40,6 +41,8 @@ export default function AdminDashboard() {
   const [responseDeadline, setResponseDeadline] = useState('');
 
   const [recipients, setRecipients] = useState<RecipientProfile[]>([]);
+  const [donors, setDonors] = useState<DonorProfile[]>([]);
+  const [selectedEntityId, setSelectedEntityId] = useState('');
   const [urgencyState, setUrgencyState] = useState<{recipientId: string, current: string} | null>(null);
   const [newUrgency, setNewUrgency] = useState('HIGH');
   const [justification, setJustification] = useState('');
@@ -51,9 +54,27 @@ export default function AdminDashboard() {
   const isSuperAdmin = user?.email?.includes('super');
 
   useEffect(() => {
+    const socket: Socket = io({ withCredentials: true });
+    socket.on("stats:update", () => {
+      fetchStats();
+      if (activeTab === 'DOCS') fetchPendingDocs();
+      if (activeTab === 'URGENCY') fetchRecipients();
+      if (activeTab === 'MATCH_ENGINE') {
+        fetchRecipients();
+        fetchDonors();
+      }
+    });
+    return () => { socket.disconnect(); };
+  }, [activeTab]);
+
+  useEffect(() => {
     fetchStats();
     if (activeTab === 'DOCS') fetchPendingDocs();
     if (activeTab === 'URGENCY') fetchRecipients();
+    if (activeTab === 'MATCH_ENGINE') {
+      fetchRecipients();
+      fetchDonors();
+    }
   }, [activeTab, hospitalFilter]);
 
   const fetchStats = async () => {
@@ -90,8 +111,15 @@ export default function AdminDashboard() {
 
   const fetchRecipients = async () => {
     try {
-      const res = await fetchClient<RecipientProfile[]>('/api/v1/recipients');
+      const res = await fetchClient<RecipientProfile[]>('/api/v1/admin/recipients');
       if (res && Array.isArray(res)) setRecipients(res);
+    } catch (e) {}
+  };
+
+  const fetchDonors = async () => {
+    try {
+      const res = await fetchClient<DonorProfile[]>('/api/v1/admin/donors');
+      if (res && Array.isArray(res)) setDonors(res);
     } catch (e) {}
   };
 
@@ -111,17 +139,18 @@ export default function AdminDashboard() {
   };
 
   const searchCandidates = async () => {
+    if (!selectedEntityId) {
+      alert("Please select a target " + (engineRole === 'recipient' ? 'recipient' : 'donor'));
+      return;
+    }
     try {
-      const res = await fetchClient<any[]>(`/api/v1/admin/matching-candidates?role=${engineRole}`);
+      const res = await fetchClient<any[]>(`/api/v1/admin/matching-candidates?role=${engineRole}&id=${selectedEntityId}`);
       if (res && Array.isArray(res)) setCandidates(res);
       else {
-        setCandidates([
-          { _id: 'cand1', organType: 'Kidney', bloodGroup: 'O+', score: 95, hospital: 'General Hospital' },
-          { _id: 'cand2', organType: 'Kidney', bloodGroup: 'O-', score: 82, hospital: 'City Care' },
-        ]);
+        setCandidates([]);
       }
     } catch (e) {
-      setCandidates([{ _id: 'cand1', organType: 'Kidney', bloodGroup: 'O+', score: 95, hospital: 'General Hospital' }]);
+      setCandidates([]);
     }
   };
 
@@ -273,15 +302,36 @@ export default function AdminDashboard() {
 
         {activeTab === 'MATCH_ENGINE' && (
           <div className="space-y-6">
-            <div className="paper-card p-6 rounded-2xl border border-[#DAD3C2] flex flex-col sm:flex-row gap-4 items-end">
-              <div className="flex-1 space-y-1">
+            <div className="paper-card p-6 rounded-2xl border border-[#DAD3C2] grid grid-cols-1 md:grid-cols-3 gap-4 items-end animate-in fade-in duration-200">
+              <div className="space-y-1">
                 <label className="text-xs text-[#4A5C55] font-medium">Search Context</label>
-                <select value={engineRole} onChange={e => setEngineRole(e.target.value as any)} className="w-full bg-white border border-[#DAD3C2] rounded-xl px-4 py-2.5 text-sm text-[#12231F] focus:outline-none focus:border-[#1F6F5C]">
+                <select value={engineRole} onChange={e => { setEngineRole(e.target.value as any); setSelectedEntityId(''); setCandidates([]); }} className="w-full bg-white border border-[#DAD3C2] rounded-xl px-4 py-2.5 text-sm text-[#12231F] focus:outline-none focus:border-[#1F6F5C]">
                   <option value="recipient">Find Donors for Recipient</option>
                   <option value="donor">Find Recipients for Donor</option>
                 </select>
               </div>
-              <button onClick={searchCandidates} className="px-6 py-2.5 bg-[#1F6F5C] hover:bg-[#154C3F] text-white font-semibold rounded-xl text-sm transition-colors">
+              <div className="space-y-1">
+                <label className="text-xs text-[#4A5C55] font-medium">
+                  {engineRole === 'recipient' ? 'Target Recipient' : 'Target Donor'}
+                </label>
+                <select value={selectedEntityId} onChange={e => { setSelectedEntityId(e.target.value); setCandidates([]); }} className="w-full bg-white border border-[#DAD3C2] rounded-xl px-4 py-2.5 text-sm text-[#12231F] focus:outline-none focus:border-[#1F6F5C]">
+                  <option value="">Select...</option>
+                  {engineRole === 'recipient' ? (
+                    recipients.map(r => (
+                      <option key={r._id} value={r._id}>
+                        {r.organNeeded} (Blood: {r.bloodGroup}) - ID: {r._id.slice(-6)}
+                      </option>
+                    ))
+                  ) : (
+                    donors.map(d => (
+                      <option key={d._id} value={d._id}>
+                        {d.organs?.join(', ') || d.organType} (Blood: {d.bloodGroup}) - ID: {d._id.slice(-6)}
+                      </option>
+                    ))
+                  )}
+                </select>
+              </div>
+              <button onClick={searchCandidates} className="px-6 py-2.5 bg-[#1F6F5C] hover:bg-[#154C3F] text-white font-semibold rounded-xl text-sm transition-colors w-full">
                 Run Engine
               </button>
             </div>
@@ -302,7 +352,7 @@ export default function AdminDashboard() {
                     <span className="text-xs px-2 py-1 bg-[#F3EFE6] rounded text-[#12231F] border border-[#DAD3C2]">{cand.organType}</span>
                     <span className="text-xs px-2 py-1 bg-[#F3EFE6] rounded text-[#12231F] border border-[#DAD3C2] font-mono">Blood: {cand.bloodGroup}</span>
                   </div>
-                  <button onClick={() => setProposeState({ donorId: engineRole === 'donor' ? 'current' : cand._id, recipientId: engineRole === 'recipient' ? 'current' : cand._id })} className="w-full py-2 bg-[#1F6F5C] hover:bg-[#154C3F] text-white rounded-xl text-sm font-semibold transition-colors">
+                  <button onClick={() => setProposeState({ donorId: engineRole === 'donor' ? selectedEntityId : cand._id, recipientId: engineRole === 'recipient' ? selectedEntityId : cand._id })} className="w-full py-2 bg-[#1F6F5C] hover:bg-[#154C3F] text-white rounded-xl text-sm font-semibold transition-colors">
                     Propose Match
                   </button>
                 </div>

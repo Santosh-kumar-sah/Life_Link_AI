@@ -72,17 +72,26 @@ export const respondToMatch = asyncHandler(async (req, res) => {
   const Match = (await import("./match.model.js")).default;
   const Donor = (await import("../donor/donor.model.js")).default;
   const match = await Match.findById(req.params.matchId);
-  const { action, declineReason } = req.body;
+  if (!match) {
+    return res.status(404).json({ success: false, error: { message: "Match not found" } });
+  }
+
+  const { action, reason, declineReason } = req.body;
+  const finalReason = declineReason || reason || "";
   
+  let finalStatus = action;
+  if (action === "ACCEPT") finalStatus = "ACCEPTED";
+  if (action === "DECLINE") finalStatus = "DECLINED";
+
   if (req.user.role === "donor") {
-    match.donorStatus = action;
+    match.donorStatus = finalStatus;
   } else if (req.user.role === "recipient") {
-    match.recipientStatus = action;
+    match.recipientStatus = finalStatus;
   }
   
-  if (action === "DECLINED") {
+  if (finalStatus === "DECLINED") {
     match.status = "DECLINED";
-    match.declineReason = declineReason;
+    match.declineReason = finalReason;
   } else if (match.donorStatus === "ACCEPTED" && match.recipientStatus === "ACCEPTED") {
     match.status = "ACCEPTED";
   }

@@ -40,6 +40,11 @@ export const uploadDocument = asyncHandler(async (req, res) => {
   if (donor) {
     donor.verificationDocuments.push({ fileUrl: req.body.fileUrl, docType: req.body.docType, status: "PENDING" });
     await donor.save();
+
+    try {
+      const { getIO } = await import("../../socket/index.js");
+      getIO().to("admin").emit("stats:update");
+    } catch (err) {}
   }
   res.json({ success: true, data: donor });
 });

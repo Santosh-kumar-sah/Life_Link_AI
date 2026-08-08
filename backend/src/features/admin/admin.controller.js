@@ -4,6 +4,7 @@ import Recipient from "../recipient/recipient.model.js";
 import UrgencyAudit from "../recipient/urgencyAudit.model.js";
 import Match from "../matches/match.model.js";
 import Notification from "../matches/notification.model.js";
+import { calculateMatchScore } from "../matches/matchingEngine.js";
 
 export const verifyDocument = asyncHandler(async (req, res) => {
   const { userId, docType, status, action, rejectionReason } = req.body;
@@ -27,6 +28,12 @@ export const verifyDocument = asyncHandler(async (req, res) => {
       }
       await donor.save();
       found = true;
+
+      // Trigger matching engine if status became active
+      if (donor.status === "active" && targetStatus === "VERIFIED") {
+        const matchService = (await import("../matches/match.service.js")).default;
+        await matchService.generateMatchesForDonor(donor._id);
+      }
     }
   } 
 
@@ -39,12 +46,25 @@ export const verifyDocument = asyncHandler(async (req, res) => {
         recipient.verificationDocuments[docIndex].rejectionReason = rejectionReason;
         await recipient.save();
         found = true;
+
+        if (targetStatus === "VERIFIED") {
+          const matchService = (await import("../matches/match.service.js")).default;
+          await matchService.generateMatchesForRecipient(recipient._id);
+        }
       }
     }
   }
 
   if (found && targetStatus === "REJECTED") {
     await Notification.create({ userId, title: "Document Rejected", message: `Your ${docType} was rejected. Reason: ${rejectionReason}`, type: "DOC_REJECTED" });
+  }
+
+  // Notify admins via socket
+  if (found) {
+    try {
+      const { getIO } = await import("../../socket/index.js");
+      getIO().to("admin").emit("stats:update");
+    } catch (err) {}
   }
 
   res.json({ success: true, message: found ? "Document verified" : "Document not found" });
@@ -60,6 +80,13 @@ export const updateUrgency = asyncHandler(async (req, res) => {
   await recipient.save();
   
   await UrgencyAudit.create({ recipientId, adminId: req.user.userId, previousLevel: oldLevel, newLevel: urgencyLevel, justification });
+
+  // Notify admins via socket
+  try {
+    const { getIO } = await import("../../socket/index.js");
+    getIO().to("admin").emit("stats:update");
+  } catch (err) {}
+
   res.json({ success: true });
 });
 
@@ -138,6 +165,63 @@ export const analytics = asyncHandler(async (req, res) => {
 });
 
 export const matchingCandidates = asyncHandler(async (req, res) => {
+  const { role, id } = req.query;
+  if (!role || !id) {
+    return res.json({ success: true, data: [] });
+  }
+
+  if (role === "recipient") {
+    const recipient = await Recipient.findById(id);
+    if (!recipient) {
+      return res.status(404).json({ success: false, error: { message: "Recipient not found" } });
+    }
+
+    const allDonors = await Donor.find({ availability: true });
+    const candidates = [];
+
+    for (const donor of allDonors) {
+      const score = calculateMatchScore(donor, recipient);
+      if (score !== null) {
+        candidates.push({
+          _id: donor._id,
+          organType: donor.organType || (donor.organs && donor.organs[0]),
+          bloodGroup: donor.bloodGroup,
+          score,
+          hospital: donor.hospital || "Unknown Hospital"
+        });
+      }
+    }
+
+    candidates.sort((a, b) => b.score - a.score);
+    return res.json({ success: true, data: candidates });
+  }
+
+  if (role === "donor") {
+    const donor = await Donor.findById(id);
+    if (!donor) {
+      return res.status(404).json({ success: false, error: { message: "Donor not found" } });
+    }
+
+    const allRecipients = await Recipient.find({});
+    const candidates = [];
+
+    for (const recipient of allRecipients) {
+      const score = calculateMatchScore(donor, recipient);
+      if (score !== null) {
+        candidates.push({
+          _id: recipient._id,
+          organType: recipient.organNeeded,
+          bloodGroup: recipient.bloodGroup,
+          score,
+          hospital: recipient.hospital || "Unknown Hospital"
+        });
+      }
+    }
+
+    candidates.sort((a, b) => b.score - a.score);
+    return res.json({ success: true, data: candidates });
+  }
+
   res.json({ success: true, data: [] });
 });
 
@@ -150,6 +234,12 @@ export const proposeMatch = asyncHandler(async (req, res) => {
   
   if (donor) await Notification.create({ userId: donor.userId, title: "New Match Proposed", message: "You have a new match proposed.", type: "MATCH_PROPOSED" });
   if (recipient) await Notification.create({ userId: recipient.userId, title: "New Match Proposed", message: "You have a new match proposed.", type: "MATCH_PROPOSED" });
+
+  // Notify admins via socket
+  try {
+    const { getIO } = await import("../../socket/index.js");
+    getIO().to("admin").emit("stats:update");
+  } catch (err) {}
   
   res.json({ success: true, data: match });
 });
@@ -202,4 +292,26 @@ export const getPendingDocuments = asyncHandler(async (req, res) => {
   }
 
   res.json({ success: true, data: pendingList });
+});
+
+export const getDonors = asyncHandler(async (req, res) => {
+  const isSuper = req.user.isSuperAdmin;
+  const userHospital = req.user.hospital;
+  const query = {};
+  if (!isSuper && userHospital) {
+    query.hospital = userHospital;
+  }
+  const donors = await Donor.find(query);
+  res.json({ success: true, data: donors });
+});
+
+export const getRecipients = asyncHandler(async (req, res) => {
+  const isSuper = req.user.isSuperAdmin;
+  const userHospital = req.user.hospital;
+  const query = {};
+  if (!isSuper && userHospital) {
+    query.hospital = userHospital;
+  }
+  const recipients = await Recipient.find(query);
+  res.json({ success: true, data: recipients });
 });

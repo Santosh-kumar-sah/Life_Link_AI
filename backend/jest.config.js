@@ -8,5 +8,6 @@ export default {
   ],
   coverageDirectory: "coverage",
   testTimeout: 10000,
-  clearMocks: true
+  clearMocks: true,
+  setupFiles: ["<rootDir>/tests/setup.js"]
 };
