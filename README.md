@@ -1,4 +1,4 @@
-# LifeLink: Real-Time Organ Donation Matching Platform
+# LifeLink: Real-Time Organ Donation Matching Platform with Ai enabled
 
 LifeLink is a production-grade web application platform designed to match organ donors with recipients in real-time. It incorporates Rh-aware blood group compatibility rules, geographic proximity computations using MongoDB geospatial index metrics, and size ratio compatibility checks. 
 
