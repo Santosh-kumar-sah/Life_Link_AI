@@ -11,7 +11,6 @@ async function run() {
     process.exit(1);
   }
   
-  process.env.MONGODB_URI = "mongodb+srv://sureshsirf886_db_user:Santosh123@cluster0.hnqkjkc.mongodb.net/lifelink?appName=Cluster0";
   await connectDB();
   
   const user = await User.findOne({ email: email.toLowerCase().trim() });
