@@ -59,9 +59,19 @@ export default function RecipientDashboard() {
           latitude: profileRes.location?.coordinates?.[1] || 0,
           longitude: profileRes.location?.coordinates?.[0] || 0,
         });
-        setMessages([
-          { _id: "m1", recipientId: profileRes._id, text: "When will my matching score be updated?", response: "Scores update dynamically upon new donor registrations.", status: "RESOLVED", createdAt: new Date(Date.now() - 86400000).toISOString() }
-        ]);
+        
+        try {
+          const msgsRes = await fetchClient<Message[]>("/api/v1/recipients/messages");
+          if (msgsRes && msgsRes.length > 0) {
+            setMessages(msgsRes.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()));
+          } else {
+            setMessages([
+              { _id: "m1", recipientId: profileRes._id, text: "Welcome to LifeLink Support. How can we help you today?", response: "Transplant coordinators are available to answer compatibility or priority questions.", status: "RESOLVED", createdAt: new Date().toISOString() }
+            ]);
+          }
+        } catch (err) {
+          console.error("Failed to fetch messages", err);
+        }
       }
       if (matchesRes) {
         setMatches(matchesRes);
