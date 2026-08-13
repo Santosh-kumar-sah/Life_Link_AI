@@ -14,7 +14,8 @@ import {
   Mail,
   Send,
   Shield,
-  Sparkles
+  Sparkles,
+  Phone
 } from "lucide-react";
 import MoleculesBackground from "../components/MoleculesBackground";
 import Tilt from "../components/Tilt";
@@ -589,6 +590,14 @@ export default function LandingPage() {
               <li className="flex items-center gap-2">
                 <Shield className="w-4 h-4 text-[#4A5C55]/60" />
                 <span>Hospital Admin Gate</span>
+              </li>
+              <li className="flex items-center gap-2">
+                <Phone className="w-4 h-4 text-[#1F6F5C]/80" />
+                <span className="font-semibold text-xs text-[#12231F]">Helpline: 1-800-24-DONOR</span>
+              </li>
+              <li className="flex items-center gap-2">
+                <Phone className="w-4 h-4 text-[#1F6F5C]/80" />
+                <span className="font-semibold text-xs text-[#12231F]">Emergency: 1-888-LIFELINK</span>
               </li>
               <li className="text-[10px] text-[#4A5C55]/70 leading-relaxed pt-2">
                 LifeLink is an organ matching registry MVP. Do not submit actual personal identifying information (PII).
