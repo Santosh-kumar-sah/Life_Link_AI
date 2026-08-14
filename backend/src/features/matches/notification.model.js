@@ -33,6 +33,16 @@ const notificationSchema = new mongoose.Schema(
   }
 );
 
+notificationSchema.post("save", async function (doc) {
+  try {
+    const { getIO } = await import("../../socket/index.js");
+    const io = getIO();
+    io.to(`user:${doc.userId.toString()}`).emit("notification:new", doc);
+  } catch (err) {
+    // Socket.io might not be initialized during scripts/tests
+  }
+});
+
 const Notification = mongoose.model("Notification", notificationSchema);
 
 export default Notification;

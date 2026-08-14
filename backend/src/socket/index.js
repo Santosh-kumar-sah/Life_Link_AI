@@ -93,13 +93,13 @@ export function emitNewMatchNotification(match, donorUser, recipientUser) {
       status: match.status,
       matchedAt: match.matchedAt,
       donor: {
-        userId: donorUser.userId,
+        userId: donorUser._id.toString(),
         email: donorUser.email,
         organType: match.donorId?.organType,
         bloodGroup: match.donorId?.bloodGroup
       },
       recipient: {
-        userId: recipientUser.userId,
+        userId: recipientUser._id.toString(),
         email: recipientUser.email,
         organNeeded: match.recipientId?.organNeeded,
         bloodGroup: match.recipientId?.bloodGroup,
@@ -108,10 +108,10 @@ export function emitNewMatchNotification(match, donorUser, recipientUser) {
     };
 
     // Notify Donor user
-    io.to(`user:${donorUser.userId}`).emit("match:new", matchPayload);
+    io.to(`user:${donorUser._id.toString()}`).emit("match:new", matchPayload);
 
     // Notify Recipient user
-    io.to(`user:${recipientUser.userId}`).emit("match:new", matchPayload);
+    io.to(`user:${recipientUser._id.toString()}`).emit("match:new", matchPayload);
 
     // Notify Admin operator room
     io.to("admin").emit("match:admin_new", matchPayload);
