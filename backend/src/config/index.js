@@ -11,7 +11,9 @@ const envSchema = z.object({
   JWT_ACCESS_SECRET: z.string().min(32, "JWT_ACCESS_SECRET must be at least 32 characters long"),
   JWT_REFRESH_SECRET: z.string().min(32, "JWT_REFRESH_SECRET must be at least 32 characters long"),
   COOKIE_SECRET: z.string().min(32, "COOKIE_SECRET must be at least 32 characters long"),
-  CORS_ORIGIN: z.string().default("http://localhost:5173")
+  CORS_ORIGIN: z.string().default("http://localhost:5173"),
+  OPENROUTER_API_KEY: z.string().optional().default(""),
+  SUPPORT_MODEL: z.string().optional().default("google/gemini-2.5-flash")
 });
 
 const parsed = envSchema.safeParse(process.env);

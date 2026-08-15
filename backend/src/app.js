@@ -16,6 +16,7 @@ import recipientRoutes from "./features/recipient/recipient.routes.js";
 import matchRoutes from "./features/matches/match.routes.js";
 import adminRoutes from "./features/admin/admin.routes.js";
 import notificationRoutes from "./features/notifications/notification.routes.js";
+import supportRoutes from "./features/support/support.routes.js";
 
 const app = express();
 
@@ -109,6 +110,7 @@ app.use("/api/v1/recipients", recipientRoutes);
 app.use("/api/v1/matches", matchRoutes);
 app.use("/api/v1/admin", adminRoutes);
 app.use("/api/v1/notifications", notificationRoutes);
+app.use("/api/v1/support", supportRoutes);
 
 // 8. 404 handler for unmatched routes
 app.use((req, res, next) => {

@@ -3,6 +3,7 @@ import { Routes, Route, Navigate } from "react-router-dom";
 import { AuthProvider } from "./context/AuthContext";
 import AuthGuard from "./components/AuthGuard";
 import Navbar from "./components/Navbar";
+import SupportChatWidget from "./components/SupportChatWidget";
 
 // Lazy-loaded page components for code splitting
 const LandingPage = lazy(() => import("./pages/LandingPage"));
@@ -74,6 +75,7 @@ function App() {
           />
           <Route path="*" element={<Navigate to="/login" replace />} />
         </Routes>
+        <SupportChatWidget />
       </Suspense>
     </AuthProvider>
   );
