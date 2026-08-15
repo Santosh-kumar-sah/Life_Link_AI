@@ -6,15 +6,22 @@ import { io, Socket } from "socket.io-client";
 import { fetchClient } from "../utils/fetchClient";
 import { RecipientProfile, Match, Message } from "../types/api";
 import {
-  Activity, Heart, Droplets, Weight, Clock, AlertTriangle, Navigation, Edit2, X, ChevronUp, ChevronDown, AlertCircle, MapPin, FileText, Upload, CheckCircle2, XCircle, History, MessageSquare, Send
+  Activity, Heart, Droplets, Weight, Clock, AlertTriangle, Navigation, Edit2, X, ChevronUp, ChevronDown, AlertCircle, MapPin, FileText, Upload, CheckCircle2, XCircle, History, MessageSquare, Send, Shield, User as UserIcon
 } from "lucide-react";
 
 const profileSchema = z.object({
   organNeeded: z.enum(["Kidney", "Liver", "Heart", "Lung", "Pancreas"]),
   bloodGroup: z.enum(["O-", "O+", "A-", "A+", "B-", "B+", "AB-", "AB+"]),
   weight: z.number().min(20).max(300),
+  age: z.number().min(1, "Age must be at least 1").max(120, "Age must be less than 120"),
   latitude: z.number().min(-90).max(90),
   longitude: z.number().min(-180).max(180),
+  hlaA1: z.string().optional().default(""),
+  hlaA2: z.string().optional().default(""),
+  hlaB1: z.string().optional().default(""),
+  hlaB2: z.string().optional().default(""),
+  hlaDR1: z.string().optional().default(""),
+  hlaDR2: z.string().optional().default(""),
 });
 
 type ProfileFormValues = z.infer<typeof profileSchema>;
@@ -41,7 +48,16 @@ export default function RecipientDashboard() {
 
   const { register, handleSubmit, setValue, reset, formState: { errors, isSubmitting } } = useForm<ProfileFormValues>({
     resolver: zodResolver(profileSchema),
-    defaultValues: { weight: 65 }
+    defaultValues: {
+      weight: 65,
+      age: 35,
+      hlaA1: "",
+      hlaA2: "",
+      hlaB1: "",
+      hlaB2: "",
+      hlaDR1: "",
+      hlaDR2: ""
+    }
   });
 
   const fetchDashboardData = async () => {
@@ -56,8 +72,15 @@ export default function RecipientDashboard() {
           organNeeded: profileRes.organNeeded,
           bloodGroup: profileRes.bloodGroup,
           weight: profileRes.weight,
+          age: profileRes.age || 35,
           latitude: profileRes.location?.coordinates?.[1] || 0,
           longitude: profileRes.location?.coordinates?.[0] || 0,
+          hlaA1: profileRes.hla?.a1 || "",
+          hlaA2: profileRes.hla?.a2 || "",
+          hlaB1: profileRes.hla?.b1 || "",
+          hlaB2: profileRes.hla?.b2 || "",
+          hlaDR1: profileRes.hla?.dr1 || "",
+          hlaDR2: profileRes.hla?.dr2 || "",
         });
         
         try {
@@ -97,9 +120,26 @@ export default function RecipientDashboard() {
 
   const onSubmitProfile = async (data: ProfileFormValues) => {
     try {
+      const payload = {
+        organNeeded: data.organNeeded,
+        bloodGroup: data.bloodGroup,
+        weight: data.weight,
+        age: data.age,
+        latitude: data.latitude,
+        longitude: data.longitude,
+        urgencyLevel: profile?.urgencyLevel || "LOW",
+        hla: {
+          a1: data.hlaA1,
+          a2: data.hlaA2,
+          b1: data.hlaB1,
+          b2: data.hlaB2,
+          dr1: data.hlaDR1,
+          dr2: data.hlaDR2,
+        }
+      };
       const res = await fetchClient<RecipientProfile>("/api/v1/recipients/profile", {
         method: "POST",
-        json: { ...data, urgencyLevel: profile?.urgencyLevel || "LOW" }
+        json: payload
       });
       if (res) {
         setProfile(res);
@@ -253,6 +293,40 @@ export default function RecipientDashboard() {
                   <input type="number" {...register("weight", { valueAsNumber: true })} className="w-full bg-white border border-[#DAD3C2] rounded-xl px-4 py-2.5 text-sm text-[#12231F] focus:outline-none focus:border-[#1F6F5C]" />
                   {errors.weight && <p className="text-[#C4453D] text-xs">{errors.weight.message}</p>}
                 </div>
+                <div className="space-y-1">
+                  <label className="text-xs text-[#4A5C55] font-medium">Age</label>
+                  <input type="number" {...register("age", { valueAsNumber: true })} className="w-full bg-white border border-[#DAD3C2] rounded-xl px-4 py-2.5 text-sm text-[#12231F] focus:outline-none focus:border-[#1F6F5C]" />
+                  {errors.age && <p className="text-[#C4453D] text-xs mt-0.5">{errors.age.message}</p>}
+                </div>
+                <div className="space-y-2 border-t border-[#DAD3C2] pt-3">
+                  <label className="text-xs text-[#12231F] font-bold block">HLA Tissue Typing</label>
+                  <div className="grid grid-cols-2 gap-3">
+                    <div className="space-y-1">
+                      <label className="text-[10px] text-[#4A5C55] font-medium">HLA-A1</label>
+                      <input type="text" placeholder="e.g. A2" {...register("hlaA1")} className="w-full bg-white border border-[#DAD3C2] rounded-xl px-3 py-1.5 text-xs text-[#12231F] focus:border-[#1F6F5C] focus:outline-none" />
+                    </div>
+                    <div className="space-y-1">
+                      <label className="text-[10px] text-[#4A5C55] font-medium">HLA-A2</label>
+                      <input type="text" placeholder="e.g. A24" {...register("hlaA2")} className="w-full bg-white border border-[#DAD3C2] rounded-xl px-3 py-1.5 text-xs text-[#12231F] focus:border-[#1F6F5C] focus:outline-none" />
+                    </div>
+                    <div className="space-y-1">
+                      <label className="text-[10px] text-[#4A5C55] font-medium">HLA-B1</label>
+                      <input type="text" placeholder="e.g. B8" {...register("hlaB1")} className="w-full bg-white border border-[#DAD3C2] rounded-xl px-3 py-1.5 text-xs text-[#12231F] focus:border-[#1F6F5C] focus:outline-none" />
+                    </div>
+                    <div className="space-y-1">
+                      <label className="text-[10px] text-[#4A5C55] font-medium">HLA-B2</label>
+                      <input type="text" placeholder="e.g. B35" {...register("hlaB2")} className="w-full bg-white border border-[#DAD3C2] rounded-xl px-3 py-1.5 text-xs text-[#12231F] focus:border-[#1F6F5C] focus:outline-none" />
+                    </div>
+                    <div className="space-y-1">
+                      <label className="text-[10px] text-[#4A5C55] font-medium">HLA-DR1</label>
+                      <input type="text" placeholder="e.g. DR4" {...register("hlaDR1")} className="w-full bg-white border border-[#DAD3C2] rounded-xl px-3 py-1.5 text-xs text-[#12231F] focus:border-[#1F6F5C] focus:outline-none" />
+                    </div>
+                    <div className="space-y-1">
+                      <label className="text-[10px] text-[#4A5C55] font-medium">HLA-DR2</label>
+                      <input type="text" placeholder="e.g. DR15" {...register("hlaDR2")} className="w-full bg-white border border-[#DAD3C2] rounded-xl px-3 py-1.5 text-xs text-[#12231F] focus:border-[#1F6F5C] focus:outline-none" />
+                    </div>
+                  </div>
+                </div>
                 <div className="grid grid-cols-2 gap-4">
                   <div className="space-y-1">
                     <label className="text-xs text-[#4A5C55] font-medium">Latitude</label>
@@ -277,7 +351,7 @@ export default function RecipientDashboard() {
               </div>
               <div className="flex items-center gap-3">
                 <Heart className="w-5 h-5 text-[#C4453D]" />
-                <div className="text-sm"><span className="text-[#4A5C55] text-xs block">Organ</span><span className="text-[#12231F]">{profile.organNeeded}</span></div>
+                <div className="text-sm"><span className="text-[#4A5C55] text-xs block">Organ Needed</span><span className="text-[#12231F]">{profile.organNeeded}</span></div>
               </div>
               <div className="flex items-center gap-3">
                 <Droplets className="w-5 h-5 text-[#C4453D]" />
@@ -286,6 +360,27 @@ export default function RecipientDashboard() {
               <div className="flex items-center gap-3">
                 <Weight className="w-5 h-5 text-[#3C8B6E]" />
                 <div className="text-sm"><span className="text-[#4A5C55] text-xs block">Weight</span><span className="text-[#12231F]">{profile.weight} kg</span></div>
+              </div>
+              <div className="flex items-center gap-3">
+                <UserIcon className="w-5 h-5 text-indigo-500" />
+                <div className="text-sm"><span className="text-[#4A5C55] text-xs block">Age</span><span className="text-[#12231F]">{profile.age || 35} years</span></div>
+              </div>
+              <div className="flex items-center gap-3">
+                <Shield className="w-5 h-5 text-purple-500" />
+                <div className="text-sm">
+                  <span className="text-[#4A5C55] text-xs block">HLA Typing</span>
+                  <span className="font-mono text-xs text-[#12231F]">
+                    {profile.hla ? (
+                      `A: [${profile.hla.a1 || "-"}, ${profile.hla.a2 || "-"}] | B: [${profile.hla.b1 || "-"}, ${profile.hla.b2 || "-"}] | DR: [${profile.hla.dr1 || "-"}, ${profile.hla.dr2 || "-"}]`
+                    ) : (
+                      "Not Specified"
+                    )}
+                  </span>
+                </div>
+              </div>
+              <div className="flex items-center gap-3">
+                <MapPin className="w-5 h-5 text-[#1F6F5C]" />
+                <div className="text-sm"><span className="text-[#4A5C55] text-xs block">Location</span><span className="text-[#12231F]">{profile.location?.coordinates?.[1]}, {profile.location?.coordinates?.[0]}</span></div>
               </div>
             </div>
           )}

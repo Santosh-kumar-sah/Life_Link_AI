@@ -4,7 +4,7 @@ import Recipient from "../recipient/recipient.model.js";
 import UrgencyAudit from "../recipient/urgencyAudit.model.js";
 import Match from "../matches/match.model.js";
 import Notification from "../matches/notification.model.js";
-import { calculateMatchScore } from "../matches/matchingEngine.js";
+import { calculateMatchScore, calculateHaversineDistance, calculateHlaMismatch } from "../matches/matchingEngine.js";
 
 export const verifyDocument = asyncHandler(async (req, res) => {
   const { userId, docType, status, action, rejectionReason } = req.body;
@@ -182,12 +182,21 @@ export const matchingCandidates = asyncHandler(async (req, res) => {
     for (const donor of allDonors) {
       const score = calculateMatchScore(donor, recipient);
       if (score !== null) {
+        const [donLon, donLat] = donor.location.coordinates;
+        const [recLon, recLat] = recipient.location.coordinates;
+        const distanceKm = Math.round(calculateHaversineDistance(donLon, donLat, recLon, recLat));
+        const hlaMismatch = calculateHlaMismatch(donor.hla, recipient.hla);
+
         candidates.push({
           _id: donor._id,
           organType: donor.organType || (donor.organs && donor.organs[0]),
           bloodGroup: donor.bloodGroup,
           score,
-          hospital: donor.hospital || "Unknown Hospital"
+          hospital: donor.hospital || "Unknown Hospital",
+          age: donor.age || 35,
+          hla: donor.hla,
+          hlaMismatch,
+          distanceKm
         });
       }
     }
@@ -208,12 +217,21 @@ export const matchingCandidates = asyncHandler(async (req, res) => {
     for (const recipient of allRecipients) {
       const score = calculateMatchScore(donor, recipient);
       if (score !== null) {
+        const [donLon, donLat] = donor.location.coordinates;
+        const [recLon, recLat] = recipient.location.coordinates;
+        const distanceKm = Math.round(calculateHaversineDistance(donLon, donLat, recLon, recLat));
+        const hlaMismatch = calculateHlaMismatch(donor.hla, recipient.hla);
+
         candidates.push({
           _id: recipient._id,
           organType: recipient.organNeeded,
           bloodGroup: recipient.bloodGroup,
           score,
-          hospital: recipient.hospital || "Unknown Hospital"
+          hospital: recipient.hospital || "Unknown Hospital",
+          age: recipient.age || 35,
+          hla: recipient.hla,
+          hlaMismatch,
+          distanceKm
         });
       }
     }

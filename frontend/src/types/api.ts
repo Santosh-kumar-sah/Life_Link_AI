@@ -23,6 +23,15 @@ export interface VerificationDocument {
   rejectionReason?: string;
 }
 
+export interface HlaTyping {
+  a1: string;
+  a2: string;
+  b1: string;
+  b2: string;
+  dr1: string;
+  dr2: string;
+}
+
 export interface DonorProfile {
   _id: string;
   userId: string;
@@ -33,6 +42,8 @@ export interface DonorProfile {
   availability: boolean;
   location: GeoLocation;
   weight: number;
+  age?: number;
+  hla?: HlaTyping;
   verificationDocuments?: VerificationDocument[];
   status?: "active" | "inactive" | "matched";
   donorType?: string;
@@ -50,6 +61,8 @@ export interface RecipientProfile {
   urgencyLevel: UrgencyLevel;
   location: GeoLocation;
   weight: number;
+  age?: number;
+  hla?: HlaTyping;
   hospital?: string;
   medicalHistory?: string;
   verificationDocuments?: VerificationDocument[];

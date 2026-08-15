@@ -348,9 +348,25 @@ export default function AdminDashboard() {
                       Score: {cand.score}
                     </div>
                   </div>
-                  <div className="flex gap-4 mb-4">
+                  <div className="flex flex-wrap gap-2 mb-4">
                     <span className="text-xs px-2 py-1 bg-[#F3EFE6] rounded text-[#12231F] border border-[#DAD3C2]">{cand.organType}</span>
                     <span className="text-xs px-2 py-1 bg-[#F3EFE6] rounded text-[#12231F] border border-[#DAD3C2] font-mono">Blood: {cand.bloodGroup}</span>
+                    <span className="text-xs px-2 py-1 bg-[#F3EFE6] rounded text-[#12231F] border border-[#DAD3C2]">Age: {cand.age || 35} yrs</span>
+                    <span className="text-xs px-2 py-1 bg-[#F3EFE6] rounded text-[#12231F] border border-[#DAD3C2] font-mono">
+                      HLA: {cand.hlaMismatch !== undefined ? `${6 - cand.hlaMismatch}/6 Match` : "N/A"}
+                    </span>
+                  </div>
+                  <div className="flex justify-between items-center bg-[#F3EFE6]/50 p-3 rounded-xl border border-[#DAD3C2] mb-4 text-xs">
+                    <div className="text-[#4A5C55]">
+                      Est. Distance: <span className="font-mono text-[#12231F] font-semibold">{cand.distanceKm} km</span>
+                    </div>
+                    <div>
+                      {cand.distanceKm <= (cand.organType === 'Heart' || cand.organType === 'Lung' ? 400 : cand.organType === 'Liver' || cand.organType === 'Pancreas' ? 1200 : 2000) ? (
+                        <span className="px-2 py-0.5 bg-[#3C8B6E]/10 text-[#3C8B6E] border border-[#3C8B6E]/20 rounded text-[10px] font-bold">Safe CIT Range</span>
+                      ) : (
+                        <span className="px-2 py-0.5 bg-[#C4453D]/10 text-[#C4453D] border border-[#C4453D]/20 rounded text-[10px] font-bold">Warning: CIT Ischemia Risk</span>
+                      )}
+                    </div>
                   </div>
                   <button onClick={() => setProposeState({ donorId: engineRole === 'donor' ? selectedEntityId : cand._id, recipientId: engineRole === 'recipient' ? selectedEntityId : cand._id })} className="w-full py-2 bg-[#1F6F5C] hover:bg-[#154C3F] text-white rounded-xl text-sm font-semibold transition-colors">
                     Propose Match

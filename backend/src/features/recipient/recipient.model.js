@@ -49,6 +49,18 @@ const recipientSchema = new mongoose.Schema(
       required: [true, "Recipient weight in kg is required"],
       min: [1, "Weight must be greater than 0"]
     },
+    age: {
+      type: Number,
+      default: 35
+    },
+    hla: {
+      a1: { type: String, default: "" },
+      a2: { type: String, default: "" },
+      b1: { type: String, default: "" },
+      b2: { type: String, default: "" },
+      dr1: { type: String, default: "" },
+      dr2: { type: String, default: "" }
+    },
     registrationDate: {
       type: Date,
       default: Date.now,
