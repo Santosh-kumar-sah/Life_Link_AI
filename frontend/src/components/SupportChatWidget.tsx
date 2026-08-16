@@ -48,13 +48,13 @@ export default function SupportChatWidget() {
 
     try {
       // Send message history to the backend API
-      const res = await fetchClient<{ success: boolean; message: Message }>("/api/v1/support/chat", {
+      const res = await fetchClient<Message>("/api/v1/support/chat", {
         method: "POST",
         json: { messages: updatedMessages }
       });
 
-      if (res && res.success) {
-        setMessages((prev) => [...prev, res.message]);
+      if (res && res.content) {
+        setMessages((prev) => [...prev, res]);
       } else {
         setMessages((prev) => [
           ...prev,

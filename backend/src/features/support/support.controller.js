@@ -37,7 +37,7 @@ export const handleSupportChat = async (req, res, next) => {
 
     return res.status(200).json({
       success: true,
-      message: mockReply
+      data: mockReply
     });
   } catch (error) {
     logger.error({ error }, "Error in handleSupportChat controller");
