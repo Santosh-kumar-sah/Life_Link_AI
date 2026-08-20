@@ -12,6 +12,8 @@ const RegisterPage = lazy(() => import("./pages/RegisterPage"));
 const DonorDashboard = lazy(() => import("./pages/DonorDashboard"));
 const RecipientDashboard = lazy(() => import("./pages/RecipientDashboard"));
 const AdminDashboard = lazy(() => import("./pages/AdminDashboard"));
+const PrivacyPolicy = lazy(() => import("./pages/PrivacyPolicy"));
+const TermsOfService = lazy(() => import("./pages/TermsOfService"));
 
 // Centered loading spinner matching dark theme
 const PageLoader = () => (
@@ -73,6 +75,8 @@ function App() {
               </AuthGuard>
             }
           />
+          <Route path="/privacy" element={<PrivacyPolicy />} />
+          <Route path="/terms" element={<TermsOfService />} />
           <Route path="*" element={<Navigate to="/login" replace />} />
         </Routes>
         <SupportChatWidget />

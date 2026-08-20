@@ -611,9 +611,9 @@ export default function LandingPage() {
             &copy; {new Date().getFullYear()} LifeLink Platform. Built for real-time healthcare matching.
           </div>
           <div className="flex gap-4">
-            <span className="hover:text-[#1F6F5C] cursor-pointer transition-colors">Privacy Policy</span>
-            <span className="hover:text-[#1F6F5C] cursor-pointer transition-colors">Terms of Service</span>
-            <span className="hover:text-[#1F6F5C] cursor-pointer transition-colors">Transplant Guidelines</span>
+            <Link to="/privacy" className="hover:text-[#1F6F5C] transition-colors">Privacy Policy</Link>
+            <Link to="/terms" className="hover:text-[#1F6F5C] transition-colors">Terms of Service</Link>
+            <Link to="/terms#guidelines" className="hover:text-[#1F6F5C] transition-colors">Transplant Guidelines</Link>
           </div>
         </div>
       </footer>
