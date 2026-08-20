@@ -17,18 +17,25 @@ LifeLink v2 introduces a humanist, clinical-grade interface designed to prioriti
 ## ⚡ Key Platform Capabilities
 
 ### 🩺 Real-Time Compatibility Engine
-Matches are ranked dynamically on a scale of `0` to `100` based on a four-tier medical scoring rubric:
-$$\text{Score} = 0.2 \times \text{Blood} + 0.4 \times \text{Urgency} + 0.2 \times \text{Distance} + 0.2 \times \text{Size}$$
+Matches are ranked dynamically on a scale of `0` to `100` based on a multi-tier clinical medical scoring rubric:
+$$\text{Score} = 0.20 \times \text{Blood} + 0.30 \times \text{Urgency} + 0.20 \times \text{Distance} + 0.20 \times \text{HLA} + 0.05 \times \text{Size} + 0.05 \times \text{Age}$$
 
-* **Blood Group Matching (20%):** Enforces Rh-aware compatibility mapping (e.g., `O-` as universal donor, `AB+` as universal recipient). Exact matches score 100; compatible but non-identical score 50; incompatible matches are rejected.
-* **Urgency & Waitlist Seniority (40%):** Recipient severity levels provide baseline scores: `CRITICAL` (100), `HIGH` (75), `MEDIUM` (50), `LOW` (25). In addition, +1 seniority point is awarded for every 30 days spent on the waiting list (capped at 100).
-* **Geographical Proximity (20%):** Direct proximity query using MongoDB Atlas `$geoNear` aggregation. Scores scale linearly from 100 (at 0 km) down to 0 (at 2000 km). Matches exceeding 2000 km score 0 for proximity but remain eligible.
-* **Size/Weight Ratios (20%):** Evaluates donor-to-recipient weight ratios. Ratios within the ideal `[0.8, 1.2]` range receive 100 points, with a linear score drop-off outside it.
+* **Blood Group Matching (20%):** Enforces Rh-aware compatibility mapping (e.g., `O-` as universal donor, `AB+` as universal recipient). Exact matches score 100; compatible but non-identical score 50; incompatible matches are rejected (`null`).
+* **Urgency & Waitlist Seniority (30%):** Recipient severity levels provide baseline scores: `CRITICAL` (100), `HIGH` (75), `MEDIUM` (50), `LOW` (25). In addition, +1 seniority point is awarded for every 30 days spent on the waiting list (capped at 10 points).
+* **Geographical Proximity & Cold Ischemia limits (20%):** Enforces strict, organ-specific Cold Ischemia Time (CIT) travel distance limits: **Heart/Lung (400 km)**, **Liver/Pancreas (1200 km)**, and **Kidney (2000 km)**. Matches exceeding limits return `null` immediately. Proximity score scales linearly from 100 down to 0 at the organ's maximum distance limit.
+* **HLA Tissue Typing Match Quality (20%):** Evaluates mismatch counts (0 to 6) based on donor-to-recipient alleles across Locus A (a1, a2), Locus B (b1, b2), and Locus DR (dr1, dr2). HLA compatibility score is `100 * (1 - mismatches / 6)`.
+* **Weight/Size Ratios (5%):** Ratios within the ideal `[0.8, 1.2]` range receive 100 points, with a linear score drop-off outside it.
+* **Age Compatibility (5%):** Prioritizes pediatric-to-pediatric and age-appropriate pairings. Score drops by 3 points per year of age difference: `Math.max(0, 100 - 3 * ageDiff)`.
 
 ### 📑 Document Verification Desk
 * **Upload Pipelines:** Donors upload identity and medical documents; recipients upload referral documents.
 * **Admin Verification Queue:** Hospital administrators can approve or reject uploads. Rejections support custom reasons (e.g., "Legibility error").
 * **Active State Triggers:** Donor profiles only change to `active` when explicit consent is set to true and at least one document has been verified. 
+
+### 🤖 AI Support Assistant (OpenRouter Integration)
+* **Interactive Live Chat:** A floating chat assistant widget accessible globally across all user and admin dashboards.
+* **Smart Support Model:** Connects to OpenRouter (configured to run `google/gemini-2.5-flash` or similar models) to help users with platform workflows, document rules, and matching engine travel limit questions.
+* **Credit Safeguard Limits:** Built with strict `max_tokens: 1000` parameters to prevent excessive credit holds on your OpenRouter account.
 
 ### 💬 Coordinator Messaging Channel
 * **Direct Coordination:** Recipient patients can dispatch inquiries directly to coordinate with local transplant coordinators.
@@ -100,6 +107,8 @@ JWT_ACCESS_SECRET=your_jwt_access_secret_key_32_characters_long
 JWT_REFRESH_SECRET=your_jwt_refresh_secret_key_32_characters_long
 COOKIE_SECRET=your_cookie_signing_secret_32_characters_long
 CORS_ORIGIN=http://localhost:5173
+OPENROUTER_API_KEY=your_openrouter_api_key_here
+SUPPORT_MODEL=google/gemini-2.5-flash
 ```
 
 ### 3. Spin Up Services
