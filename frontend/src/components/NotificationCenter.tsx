@@ -59,6 +59,25 @@ export const NotificationCenter: React.FC = () => {
     }
   };
 
+  const markAllAsRead = async () => {
+    try {
+      await fetchClient("/api/v1/notifications/mark-all-read", {
+        method: "PATCH",
+      });
+      setNotifications((prev) =>
+        prev.map((n) => ({ ...n, read: true }))
+      );
+      setUnreadCount(0);
+    } catch (err) {
+      console.error("Failed to mark all as read", err);
+      // Optimistic update
+      setNotifications((prev) =>
+        prev.map((n) => ({ ...n, read: true }))
+      );
+      setUnreadCount(0);
+    }
+  };
+
   return (
     <div className="relative">
       <button
@@ -76,7 +95,17 @@ export const NotificationCenter: React.FC = () => {
       {isOpen && (
         <div className="absolute right-0 mt-3 w-80 bg-white border border-[#DAD3C2] rounded-2xl shadow-2xl z-50 overflow-hidden animate-in fade-in slide-in-from-top-2">
           <div className="p-4 border-b border-[#DAD3C2] flex justify-between items-center bg-[#F3EFE6]">
-            <h3 className="font-bold text-[#12231F]">Notifications</h3>
+            <div className="flex items-center gap-2">
+              <h3 className="font-bold text-[#12231F]">Notifications</h3>
+              {unreadCount > 0 && (
+                <button
+                  onClick={markAllAsRead}
+                  className="text-[10px] bg-[#1F6F5C]/10 text-[#1F6F5C] px-2.5 py-0.5 rounded-full font-bold hover:bg-[#1F6F5C]/20 transition-colors"
+                >
+                  Mark all read
+                </button>
+              )}
+            </div>
             <button onClick={() => setIsOpen(false)} className="text-[#4A5C55] hover:text-[#12231F]">
               <X className="w-4 h-4" />
             </button>
