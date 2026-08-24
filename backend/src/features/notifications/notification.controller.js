@@ -10,3 +10,8 @@ export const markRead = asyncHandler(async (req, res) => {
   await Notification.findByIdAndUpdate(req.params.id, { read: true });
   res.json({ success: true });
 });
+
+export const markAllRead = asyncHandler(async (req, res) => {
+  await Notification.updateMany({ userId: req.user.userId, read: false }, { read: true });
+  res.json({ success: true });
+});
