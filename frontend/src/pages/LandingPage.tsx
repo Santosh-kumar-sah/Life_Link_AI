@@ -76,12 +76,102 @@ const MagneticButton: React.FC<{ children: React.ReactNode; className?: string; 
 export default function LandingPage() {
   const [scrolled, setScrolled] = useState(false);
   const [openFaq, setOpenFaq] = useState<number | null>(null);
-  const [proximityVal, setProximityVal] = useState(45); // Interactive Matching Science Slider
   const [newsletterEmail, setNewsletterEmail] = useState("");
   const [newsletterSubscribed, setNewsletterSubscribed] = useState(false);
 
+  // Match Score Calculator States
+  const [calcOrgan, setCalcOrgan] = useState<"Heart" | "Lung" | "Liver" | "Pancreas" | "Kidney">("Kidney");
+  const [calcDonorBlood, setCalcDonorBlood] = useState("O-");
+  const [calcRecipientBlood, setCalcRecipientBlood] = useState("O-");
+  const [calcDistance, setCalcDistance] = useState(150);
+  const [calcUrgency, setCalcUrgency] = useState<"CRITICAL" | "HIGH" | "MEDIUM" | "LOW">("HIGH");
+  const [calcWaitlistDays, setCalcWaitlistDays] = useState(120);
+  const [calcHlaMismatches, setCalcHlaMismatches] = useState(2);
+  const [calcDonorWeight, setCalcDonorWeight] = useState(70);
+  const [calcRecipientWeight, setCalcRecipientWeight] = useState(72);
+  const [calcDonorAge, setCalcDonorAge] = useState(35);
+  const [calcRecipientAge, setCalcRecipientAge] = useState(38);
+
   const pulsePathRef = useRef<SVGPathElement | null>(null);
   const graphRef = useRef<HTMLDivElement | null>(null);
+
+  // ABO-Rh compatibility check
+  const BLOOD_COMPATIBILITY: Record<string, string[]> = {
+    "O-": ["O-", "O+", "A-", "A+", "B-", "B+", "AB-", "AB+"],
+    "O+": ["O+", "A+", "B+", "AB+"],
+    "A-": ["A-", "A+", "AB-", "AB+"],
+    "A+": ["A+", "AB+"],
+    "B-": ["B-", "B+", "AB-", "AB+"],
+    "B+": ["B+", "AB+"],
+    "AB-": ["AB-", "AB+"],
+    "AB+": ["AB+"]
+  };
+
+  const isBloodCompatible = BLOOD_COMPATIBILITY[calcDonorBlood]?.includes(calcRecipientBlood) ?? false;
+
+  // Max distance by organ type
+  const maxDistanceLimit = 
+    calcOrgan === "Heart" || calcOrgan === "Lung" ? 400 :
+    calcOrgan === "Liver" || calcOrgan === "Pancreas" ? 1200 : 2000;
+
+  const isDistanceCompatible = calcDistance <= maxDistanceLimit;
+
+  let compatibilityStatus = "COMPATIBLE";
+  let incompatibilityReason = "";
+
+  if (!isBloodCompatible) {
+    compatibilityStatus = "INCOMPATIBLE";
+    incompatibilityReason = `Blood Type Mismatch: ${calcDonorBlood} is not compatible with recipient ${calcRecipientBlood}.`;
+  } else if (!isDistanceCompatible) {
+    compatibilityStatus = "INCOMPATIBLE";
+    incompatibilityReason = `Cold Ischemia Limit Exceeded: Max distance for ${calcOrgan} is ${maxDistanceLimit} km (current: ${calcDistance} km).`;
+  }
+
+  // Calculate scores if compatible
+  let bloodScore = 0;
+  let urgencyScore = 0;
+  let distanceScore = 0;
+  let hlaScore = 0;
+  let sizeScore = 0;
+  let ageScore = 0;
+  let finalScore: number | null = null;
+
+  if (compatibilityStatus === "COMPATIBLE") {
+    // Blood Score (20%)
+    bloodScore = calcDonorBlood === calcRecipientBlood ? 100 : 50;
+
+    // Urgency Score (30%)
+    const urgencyBaseScores = { CRITICAL: 100, HIGH: 75, MEDIUM: 50, LOW: 25 };
+    const baseUrgency = urgencyBaseScores[calcUrgency];
+    const waitingBonus = Math.min(10, Math.floor(calcWaitlistDays / 30));
+    urgencyScore = Math.min(100, baseUrgency + waitingBonus);
+
+    // Distance Score (20%)
+    distanceScore = Math.max(0, 100 * (1 - calcDistance / maxDistanceLimit));
+
+    // HLA Score (20%)
+    hlaScore = 100 * (1 - calcHlaMismatches / 6);
+
+    // Weight Score (5%)
+    const weightRatio = calcDonorWeight / calcRecipientWeight;
+    sizeScore = (weightRatio >= 0.8 && weightRatio <= 1.2)
+      ? 100
+      : Math.max(0, 100 * (1 - Math.abs(1 - weightRatio)));
+
+    // Age Score (5%)
+    const ageDiff = Math.abs(calcDonorAge - calcRecipientAge);
+    ageScore = Math.max(0, 100 - 3 * ageDiff);
+
+    const calculated = 
+      0.20 * bloodScore +
+      0.30 * urgencyScore +
+      0.20 * distanceScore +
+      0.20 * hlaScore +
+      0.05 * sizeScore +
+      0.05 * ageScore;
+    
+    finalScore = Math.round(calculated * 100) / 100;
+  }
 
   // Monitor scroll for nav opacity/frosted glass
   useEffect(() => {
@@ -403,35 +493,263 @@ export default function LandingPage() {
               </div>
             </div>
 
-            {/* Right Column: Interactive Proximity Matrix */}
-            <div className="paper-card p-6 sm:p-8 rounded-3xl space-y-6 bg-white">
+            {/* Right Column: Interactive Match Calculator */}
+            <div className="paper-card p-6 sm:p-8 rounded-3xl space-y-6 bg-white border border-[#DAD3C2]/50 shadow-sm">
               <div>
-                <h3 className="text-lg font-bold font-serif-fraunces text-[#12231F]">Geospatial Transport Window</h3>
-                <p className="text-xs text-[#4A5C55] leading-relaxed mt-2">
-                  Proximity transport duration scales match scores. Match window decreases linearly over travel distances.
+                <span className="text-[10px] font-mono uppercase tracking-wider text-[#1F6F5C] font-bold">Simulator Desk</span>
+                <h3 className="text-lg font-bold font-serif-fraunces text-[#12231F] mt-0.5">Interactive Match Calculator</h3>
+                <p className="text-xs text-[#4A5C55] leading-relaxed mt-1">
+                  Adjust patient and donor clinical parameters to calculate suitability scores in real-time.
                 </p>
               </div>
 
-              {/* Proximity Slider simulation */}
-              <div className="space-y-4 pt-4">
-                <div className="flex justify-between items-center text-xs font-mono text-[#4A5C55]">
-                  <span>Transport Proximity</span>
-                  <span className="text-[#1F6F5C] font-bold">{proximityVal} km</span>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 text-xs">
+                {/* Column 1: Biological Factors */}
+                <div className="space-y-3.5">
+                  <div className="border-b border-[#DAD3C2]/45 pb-1 font-bold text-[#1F6F5C] tracking-wide uppercase text-[10px]">
+                    Biological Factors
+                  </div>
+                  
+                  <div className="grid grid-cols-2 gap-2">
+                    <div>
+                      <label className="block text-[10px] text-[#4A5C55] font-semibold mb-1">Donor Blood</label>
+                      <select
+                        value={calcDonorBlood}
+                        onChange={(e) => setCalcDonorBlood(e.target.value)}
+                        className="w-full bg-[#F3EFE6] border border-[#DAD3C2] p-2 rounded-lg font-mono text-[#12231F] font-bold outline-none focus:border-[#1F6F5C]"
+                      >
+                        {["O-", "O+", "A-", "A+", "B-", "B+", "AB-", "AB+"].map((g) => (
+                          <option key={g} value={g}>{g}</option>
+                        ))}
+                      </select>
+                    </div>
+                    <div>
+                      <label className="block text-[10px] text-[#4A5C55] font-semibold mb-1">Recipient Blood</label>
+                      <select
+                        value={calcRecipientBlood}
+                        onChange={(e) => setCalcRecipientBlood(e.target.value)}
+                        className="w-full bg-[#F3EFE6] border border-[#DAD3C2] p-2 rounded-lg font-mono text-[#12231F] font-bold outline-none focus:border-[#1F6F5C]"
+                      >
+                        {["O-", "O+", "A-", "A+", "B-", "B+", "AB-", "AB+"].map((g) => (
+                          <option key={g} value={g}>{g}</option>
+                        ))}
+                      </select>
+                    </div>
+                  </div>
+
+                  <div>
+                    <div className="flex justify-between items-center text-[10px] text-[#4A5C55] font-semibold mb-1">
+                      <span>HLA Mismatch Loci</span>
+                      <span className="font-bold font-mono text-[#1F6F5C]">{calcHlaMismatches} / 6</span>
+                    </div>
+                    <input
+                      type="range"
+                      min="0"
+                      max="6"
+                      value={calcHlaMismatches}
+                      onChange={(e) => setCalcHlaMismatches(parseInt(e.target.value))}
+                      className="w-full h-1 bg-[#F3EFE6] rounded appearance-none cursor-pointer accent-[#1F6F5C]"
+                    />
+                  </div>
+
+                  <div className="grid grid-cols-2 gap-2">
+                    <div>
+                      <label className="block text-[10px] text-[#4A5C55] font-semibold mb-1">Donor Age (Yrs)</label>
+                      <input
+                        type="number"
+                        min="1"
+                        max="100"
+                        value={calcDonorAge}
+                        onChange={(e) => setCalcDonorAge(Math.max(1, parseInt(e.target.value) || 35))}
+                        className="w-full bg-[#F3EFE6] border border-[#DAD3C2] p-2 rounded-lg font-mono text-[#12231F] outline-none"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-[10px] text-[#4A5C55] font-semibold mb-1">Recipient Age</label>
+                      <input
+                        type="number"
+                        min="1"
+                        max="100"
+                        value={calcRecipientAge}
+                        onChange={(e) => setCalcRecipientAge(Math.max(1, parseInt(e.target.value) || 35))}
+                        className="w-full bg-[#F3EFE6] border border-[#DAD3C2] p-2 rounded-lg font-mono text-[#12231F] outline-none"
+                      />
+                    </div>
+                  </div>
+
+                  <div className="grid grid-cols-2 gap-2">
+                    <div>
+                      <label className="block text-[10px] text-[#4A5C55] font-semibold mb-1">Donor Wt (Kg)</label>
+                      <input
+                        type="number"
+                        min="10"
+                        max="200"
+                        value={calcDonorWeight}
+                        onChange={(e) => setCalcDonorWeight(Math.max(10, parseInt(e.target.value) || 70))}
+                        className="w-full bg-[#F3EFE6] border border-[#DAD3C2] p-2 rounded-lg font-mono text-[#12231F] outline-none"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-[10px] text-[#4A5C55] font-semibold mb-1">Recipient Wt</label>
+                      <input
+                        type="number"
+                        min="10"
+                        max="200"
+                        value={calcRecipientWeight}
+                        onChange={(e) => setCalcRecipientWeight(Math.max(10, parseInt(e.target.value) || 72))}
+                        className="w-full bg-[#F3EFE6] border border-[#DAD3C2] p-2 rounded-lg font-mono text-[#12231F] outline-none"
+                      />
+                    </div>
+                  </div>
                 </div>
-                <input
-                  type="range"
-                  min="5"
-                  max="500"
-                  value={proximityVal}
-                  onChange={(e) => setProximityVal(parseInt(e.target.value))}
-                  className="w-full h-1.5 bg-[#F3EFE6] rounded-lg appearance-none cursor-pointer accent-[#1F6F5C]"
-                />
-                <div className="bg-[#F3EFE6] p-4 rounded-xl flex items-center justify-between text-xs">
-                  <span className="text-[#4A5C55] font-medium">Estimated Transit time:</span>
-                  <span className="font-mono font-bold text-[#12231F]">
-                    {Math.round((proximityVal * 60) / 80)} minutes
-                  </span>
+
+                {/* Column 2: Logistics & Urgency */}
+                <div className="space-y-3.5">
+                  <div className="border-b border-[#DAD3C2]/45 pb-1 font-bold text-[#1F6F5C] tracking-wide uppercase text-[10px]">
+                    Logistics & Urgency
+                  </div>
+
+                  <div>
+                    <label className="block text-[10px] text-[#4A5C55] font-semibold mb-1">Organ Needed</label>
+                    <select
+                      value={calcOrgan}
+                      onChange={(e) => setCalcOrgan(e.target.value as any)}
+                      className="w-full bg-[#F3EFE6] border border-[#DAD3C2] p-2 rounded-lg font-bold text-[#12231F] outline-none focus:border-[#1F6F5C]"
+                    >
+                      {["Kidney", "Heart", "Lung", "Liver", "Pancreas"].map((o) => (
+                        <option key={o} value={o}>{o}</option>
+                      ))}
+                    </select>
+                  </div>
+
+                  <div>
+                    <div className="flex justify-between items-center text-[10px] text-[#4A5C55] font-semibold mb-1">
+                      <span>Geographic Distance</span>
+                      <span className="font-bold font-mono text-[#1F6F5C]">{calcDistance} km</span>
+                    </div>
+                    <input
+                      type="range"
+                      min="5"
+                      max={2500}
+                      value={calcDistance}
+                      onChange={(e) => setCalcDistance(parseInt(e.target.value))}
+                      className="w-full h-1 bg-[#F3EFE6] rounded appearance-none cursor-pointer accent-[#1F6F5C]"
+                    />
+                    <div className="text-[9px] text-[#4A5C55] text-right mt-0.5">
+                      Max Limit: <span className="font-bold">{maxDistanceLimit} km</span>
+                    </div>
+                  </div>
+
+                  <div>
+                    <label className="block text-[10px] text-[#4A5C55] font-semibold mb-1">Urgency Level</label>
+                    <select
+                      value={calcUrgency}
+                      onChange={(e) => setCalcUrgency(e.target.value as any)}
+                      className="w-full bg-[#F3EFE6] border border-[#DAD3C2] p-2 rounded-lg font-bold text-[#12231F] outline-none focus:border-[#1F6F5C]"
+                    >
+                      {["CRITICAL", "HIGH", "MEDIUM", "LOW"].map((u) => (
+                        <option key={u} value={u}>{u}</option>
+                      ))}
+                    </select>
+                  </div>
+
+                  <div>
+                    <label className="block text-[10px] text-[#4A5C55] font-semibold mb-1">Waitlist Seniority (Days)</label>
+                    <input
+                      type="number"
+                      min="0"
+                      max="3000"
+                      value={calcWaitlistDays}
+                      onChange={(e) => setCalcWaitlistDays(Math.max(0, parseInt(e.target.value) || 0))}
+                      className="w-full bg-[#F3EFE6] border border-[#DAD3C2] p-2 rounded-lg font-mono text-[#12231F] outline-none"
+                    />
+                  </div>
                 </div>
+              </div>
+
+              {/* Calculator Output Section */}
+              <div className="bg-[#F3EFE6] p-4 rounded-2xl border border-[#DAD3C2] transition-all duration-300">
+                {compatibilityStatus === "INCOMPATIBLE" ? (
+                  <div className="text-center py-2">
+                    <span className="inline-flex items-center gap-1.5 px-3 py-1 bg-red-50 text-red-700 border border-red-200 rounded-full text-[10px] font-bold uppercase tracking-wider mb-2">
+                      <X className="w-3 h-3" /> Rejection Alert
+                    </span>
+                    <p className="text-xs font-bold text-red-950 font-serif-fraunces">{incompatibilityReason}</p>
+                    <p className="text-[10px] text-[#4A5C55] mt-1.5 leading-relaxed">
+                      Matches with biological incompatibilities or exceeding organ transport cold ischemia times are automatically blocked from score calculation.
+                    </p>
+                  </div>
+                ) : (
+                  <div className="space-y-3">
+                    <div className="flex items-center justify-between">
+                      <div>
+                        <span className="inline-flex items-center gap-1 px-2.5 py-0.5 bg-[#1F6F5C]/10 text-[#1F6F5C] border border-[#1F6F5C]/20 rounded-full text-[9px] font-bold uppercase tracking-wider">
+                          Compatible Pairing
+                        </span>
+                        <h4 className="text-sm font-bold text-[#12231F] font-serif-fraunces mt-1">Calculated Score</h4>
+                      </div>
+                      <div className="text-right">
+                        <span className="text-4xl font-extrabold font-mono text-[#1F6F5C]">
+                          {finalScore?.toFixed(1) || "0.0"}
+                        </span>
+                        <span className="text-xs font-mono text-[#4A5C55] ml-0.5">/100</span>
+                      </div>
+                    </div>
+
+                    <div className="space-y-1.5 text-[10px] text-[#4A5C55]">
+                      {/* Breakdown Bars */}
+                      <div>
+                        <div className="flex justify-between font-semibold mb-0.5">
+                          <span>Blood Compatibility (20% wt)</span>
+                          <span className="font-mono text-[#12231F]">{(0.20 * bloodScore).toFixed(1)} / 20</span>
+                        </div>
+                        <div className="w-full bg-white rounded-full h-1.5 border border-[#DAD3C2]/45">
+                          <div className="bg-[#1F6F5C] h-1.5 rounded-full" style={{ width: `${bloodScore}%` }}></div>
+                        </div>
+                      </div>
+
+                      <div>
+                        <div className="flex justify-between font-semibold mb-0.5">
+                          <span>Medical Urgency & Seniority (30% wt)</span>
+                          <span className="font-mono text-[#12231F]">{(0.30 * urgencyScore).toFixed(1)} / 30</span>
+                        </div>
+                        <div className="w-full bg-white rounded-full h-1.5 border border-[#DAD3C2]/45">
+                          <div className="bg-amber-500 h-1.5 rounded-full" style={{ width: `${urgencyScore}%` }}></div>
+                        </div>
+                      </div>
+
+                      <div>
+                        <div className="flex justify-between font-semibold mb-0.5">
+                          <span>Geospatial Proximity (20% wt)</span>
+                          <span className="font-mono text-[#12231F]">{(0.20 * distanceScore).toFixed(1)} / 20</span>
+                        </div>
+                        <div className="w-full bg-white rounded-full h-1.5 border border-[#DAD3C2]/45">
+                          <div className="bg-blue-500 h-1.5 rounded-full" style={{ width: `${distanceScore}%` }}></div>
+                        </div>
+                      </div>
+
+                      <div>
+                        <div className="flex justify-between font-semibold mb-0.5">
+                          <span>HLA Tissue Matching (20% wt)</span>
+                          <span className="font-mono text-[#12231F]">{(0.20 * hlaScore).toFixed(1)} / 20</span>
+                        </div>
+                        <div className="w-full bg-white rounded-full h-1.5 border border-[#DAD3C2]/45">
+                          <div className="bg-purple-500 h-1.5 rounded-full" style={{ width: `${hlaScore}%` }}></div>
+                        </div>
+                      </div>
+
+                      <div>
+                        <div className="flex justify-between font-semibold mb-0.5">
+                          <span>Anatomical Weight & Age Match (10% wt)</span>
+                          <span className="font-mono text-[#12231F]">{(0.05 * sizeScore + 0.05 * ageScore).toFixed(1)} / 10</span>
+                        </div>
+                        <div className="w-full bg-white rounded-full h-1.5 border border-[#DAD3C2]/45">
+                          <div className="bg-pink-500 h-1.5 rounded-full" style={{ width: `${(sizeScore + ageScore) / 2}%` }}></div>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                )}
               </div>
             </div>
           </div>
