@@ -269,6 +269,52 @@ All routes are prefixed with `/api/v1/matches`.
 
 ---
 
+## Notification Endpoints
+
+All notification routes are prefixed with `/api/v1/notifications` and require user authentication.
+
+### 1. Get Notifications
+* **URL:** `/`
+* **Method:** `GET`
+* **Response (200 OK):**
+  ```json
+  {
+    "success": true,
+    "data": [
+      {
+        "_id": "662f551a9a4b2c1234567890",
+        "userId": "60d04b32cef735d3c478de2a",
+        "title": "New Compatible Match Found",
+        "message": "A 92.5% compatibility match has been identified for Kidney.",
+        "read": false,
+        "createdAt": "2026-08-24T18:00:00.000Z"
+      }
+    ]
+  }
+  ```
+
+### 2. Mark Single Notification as Read
+* **URL:** `/:id/read`
+* **Method:** `PATCH`
+* **Response (200 OK):**
+  ```json
+  {
+    "success": true
+  }
+  ```
+
+### 3. Mark All Notifications as Read
+* **URL:** `/mark-all-read`
+* **Method:** `PATCH`
+* **Response (200 OK):**
+  ```json
+  {
+    "success": true
+  }
+  ```
+
+---
+
 ## Socket.io Real-Time Events
 
 The Socket.io server connects on `/socket.io/` route. Handshake requires cookie authorization containing the `access_token`.
